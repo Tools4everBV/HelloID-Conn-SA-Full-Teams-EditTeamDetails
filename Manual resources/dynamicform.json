@@ -1,0 +1,509 @@
+[
+  {
+    "label": "Select Team",
+    "fields": [
+      {
+        "key": "filterDisplayName",
+        "templateOptions": {
+          "label": "Search for DisplayName",
+          "required": false
+        },
+        "type": "input",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "teams",
+        "templateOptions": {
+          "label": "Select Team",
+          "required": true,
+          "grid": {
+            "columns": [
+              {
+                "headerName": "Display Name",
+                "field": "DisplayName"
+              },
+              {
+                "headerName": "Description",
+                "field": "Description"
+              },
+              {
+                "headerName": "Mail Nick Name",
+                "field": "MailNickName"
+              },
+              {
+                "headerName": "Visibility",
+                "field": "Visibility"
+              },
+              {
+                "headerName": "Archived",
+                "field": "Archived"
+              },
+              {
+                "headerName": "Group Id",
+                "field": "GroupId"
+              }
+            ],
+            "height": 300,
+            "rowSelection": "single"
+          },
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamsGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "filterDisplayName",
+                  "otherFieldValue": {
+                    "otherFieldKey": "filterDisplayName"
+                  }
+                }
+			  ]
+            }
+          },
+          "useFilter": false,
+          "useDefault": false
+        },
+        "type": "grid",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      }
+    ]
+  },
+  {
+    "label": "Edit Team Details",
+    "fields": [
+      {
+        "key": "AllowAddRemoveApps",
+        "templateOptions": {
+          "label": "AllowAddRemoveApps",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowAddRemoveApps",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowChannelMentions",
+        "templateOptions": {
+          "label": "AllowChannelMentions",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowChannelMentions",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowCreateUpdateChannels",
+        "templateOptions": {
+          "label": "AllowCreateUpdateChannels",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowCreateUpdateChannels",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowCreateUpdateRemoveConnectors",
+        "templateOptions": {
+          "label": "AllowCreateUpdateRemoveConnectors",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowCreateUpdateRemoveConnectors",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowCreateUpdateRemoveTabs",
+        "templateOptions": {
+          "label": "AllowCreateUpdateRemoveTabs",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowCreateUpdateRemoveTabs",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowCustomMemes",
+        "templateOptions": {
+          "label": "AllowCustomMemes",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowCustomMemes",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowDeleteChannels",
+        "templateOptions": {
+          "label": "AllowDeleteChannels",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowDeleteChannels",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowGiphy",
+        "templateOptions": {
+          "label": "AllowGiphy",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowGiphy",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowGuestCreateUpdateChannels",
+        "templateOptions": {
+          "label": "AllowGuestCreateUpdateChannels",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowGuestCreateUpdateChannels",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowGuestDeleteChannels",
+        "templateOptions": {
+          "label": "AllowGuestDeleteChannels",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowGuestDeleteChannels",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowOwnerDeleteMessages",
+        "templateOptions": {
+          "label": "AllowOwnerDeleteMessages",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowOwnerDeleteMessages",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowStickersAndMemes",
+        "templateOptions": {
+          "label": "AllowStickersAndMemes",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowStickersAndMemes",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowTeamMentions",
+        "templateOptions": {
+          "label": "AllowTeamMentions",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowTeamMentions",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowUserDeleteMessages",
+        "templateOptions": {
+          "label": "AllowUserDeleteMessages",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowUserDeleteMessages",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "AllowUserEditMessages",
+        "templateOptions": {
+          "label": "AllowUserEditMessages",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "AllowUserEditMessages",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      },
+      {
+        "key": "ShowInTeamsSearchAndSuggestions",
+        "templateOptions": {
+          "label": "ShowInTeamsSearchAndSuggestions",
+          "useSwitch": true,
+          "checkboxLabel": "Allow",
+          "useDataSource": true,
+          "displayField": "ShowInTeamsSearchAndSuggestions",
+          "dataSourceConfig": {
+            "dataSourceGuid": "$dataSourceGetTeamParametersGuid",
+            "input": {
+              "propertyInputs": [
+                {
+                  "propertyName": "selectedGroup",
+                  "otherFieldValue": {
+                    "otherFieldKey": "teams"
+                  }
+                }
+              ]
+            }
+          },
+          "useFilter": false
+        },
+        "type": "boolean",
+        "summaryVisibility": "Show",
+        "requiresTemplateOptions": true
+      }
+    ]
+  }
+]

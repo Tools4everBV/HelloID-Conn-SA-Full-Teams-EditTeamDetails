@@ -1,0 +1,10 @@
+[
+    {
+        "description":  "Filter for DisplayName",
+        "translateDescription":  false,
+        "inputFieldType":  1,
+        "key":  "filterDisplayName",
+        "type":  0,
+        "options":  0
+    }
+]

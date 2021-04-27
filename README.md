@@ -42,3 +42,6 @@ This Delegated Form uses the following resources in order to run
 ### Task data source 'Teams-get-team-parameters'
 
 ### Delegated form task 'Teams-edit-team-details'
+
+# HelloID Docs
+The official HelloID documentation can be found at: https://docs.helloid.com/

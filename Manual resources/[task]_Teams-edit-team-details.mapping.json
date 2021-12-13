@@ -1,0 +1,70 @@
+[
+    {
+        "name":  "AllowAddRemoveApps",
+        "value":  "{{form.AllowAddRemoveApps}}"
+    },
+    {
+        "name":  "AllowChannelMentions",
+        "value":  "{{form.AllowChannelMentions}}"
+    },
+    {
+        "name":  "AllowCreateUpdateChannels",
+        "value":  "{{form.AllowCreateUpdateChannels}}"
+    },
+    {
+        "name":  "AllowCreateUpdateRemoveConnectors",
+        "value":  "{{form.AllowCreateUpdateRemoveConnectors}}"
+    },
+    {
+        "name":  "AllowCreateUpdateRemoveTabs",
+        "value":  "{{form.AllowCreateUpdateRemoveTabs}}"
+    },
+    {
+        "name":  "AllowCustomMemes",
+        "value":  "{{form.AllowCustomMemes}}"
+    },
+    {
+        "name":  "AllowDeleteChannels",
+        "value":  "{{form.AllowDeleteChannels}}"
+    },
+    {
+        "name":  "AllowGiphy",
+        "value":  "{{form.AllowGiphy}}"
+    },
+    {
+        "name":  "AllowGuestCreateUpdateChannels",
+        "value":  "{{form.AllowGuestCreateUpdateChannels}}"
+    },
+    {
+        "name":  "AllowGuestDeleteChannels",
+        "value":  "{{form.AllowGuestDeleteChannels}}"
+    },
+    {
+        "name":  "AllowOwnerDeleteMessages",
+        "value":  "{{form.AllowOwnerDeleteMessages}}"
+    },
+    {
+        "name":  "AllowStickersAndMemes",
+        "value":  "{{form.AllowStickersAndMemes}}"
+    },
+    {
+        "name":  "AllowTeamMentions",
+        "value":  "{{form.AllowTeamMentions}}"
+    },
+    {
+        "name":  "AllowUserDeleteMessages",
+        "value":  "{{form.AllowUserDeleteMessages}}"
+    },
+    {
+        "name":  "AllowUserEditMessages",
+        "value":  "{{form.AllowUserEditMessages}}"
+    },
+    {
+        "name":  "groupId",
+        "value":  "{{form.teams.GroupId}}"
+    },
+    {
+        "name":  "ShowInTeamsSearchAndSuggestions",
+        "value":  "{{form.ShowInTeamsSearchAndSuggestions}}"
+    }
+]

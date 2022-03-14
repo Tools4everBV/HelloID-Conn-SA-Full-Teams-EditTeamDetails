@@ -1,6 +1,5 @@
 # Set TLS to accept TLS, TLS 1.1 and TLS 1.2
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
-
 #HelloID variables
 #Note: when running this script inside HelloID; portalUrl and API credentials are provided automatically (generate and save API credentials first in your admin panel!)
 $portalUrl = "https://CUSTOMER.helloid.com"
@@ -16,16 +15,18 @@ $script:duplicateFormSuffix = "_tmp" #the suffix will be added to all HelloID re
 #NOTE: You can also update the HelloID Global variable values afterwards in the HelloID Admin Portal: https://<CUSTOMER>.helloid.com/admin/variablelibrary
 $globalHelloIDVariables = [System.Collections.Generic.List[object]]@();
 
-#Global variable #1 >> TeamsAdminPWD
-$tmpName = @'
-TeamsAdminPWD
-'@ 
-$tmpValue = "" 
-$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "True"});
-
-#Global variable #2 >> TeamsAdminUser
+#Global variable #1 >> TeamsAdminUser
 $tmpName = @'
 TeamsAdminUser
+'@ 
+$tmpValue = @'
+ramon@schoulens.onmicrosoft.com
+'@ 
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
+
+#Global variable #2 >> TeamsAdminPWD
+$tmpName = @'
+TeamsAdminPWD
 '@ 
 $tmpValue = "" 
 $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "True"});
@@ -33,7 +34,6 @@ $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue
 
 #make sure write-information logging is visual
 $InformationPreference = "continue"
-
 # Check for prefilled API Authorization header
 if (-not [string]::IsNullOrEmpty($portalApiBasic)) {
     $script:headers = @{"authorization" = $portalApiBasic}
@@ -47,7 +47,6 @@ if (-not [string]::IsNullOrEmpty($portalApiBasic)) {
     $script:headers = @{"authorization" = $Key}
     Write-Information "Using manual API credentials"
 }
-
 # Check for prefilled PortalBaseURL
 if (-not [string]::IsNullOrEmpty($portalBaseUrl)) {
     $script:PortalBaseUrl = $portalBaseUrl
@@ -56,10 +55,8 @@ if (-not [string]::IsNullOrEmpty($portalBaseUrl)) {
     $script:PortalBaseUrl = $portalUrl
     Write-Information "Using manual PortalURL: $script:PortalBaseUrl"
 }
-
 # Define specific endpoint URI
 $script:PortalBaseUrl = $script:PortalBaseUrl.trim("/") + "/"  
-
 # Make sure to reveive an empty array using PowerShell Core
 function ConvertFrom-Json-WithEmptyArray([string]$jsonString) {
     # Running in PowerShell Core?
@@ -71,16 +68,13 @@ function ConvertFrom-Json-WithEmptyArray([string]$jsonString) {
         return ,$r  # Force return value to be an array using a comma
     }
 }
-
 function Invoke-HelloIDGlobalVariable {
     param(
         [parameter(Mandatory)][String]$Name,
         [parameter(Mandatory)][String][AllowEmptyString()]$Value,
         [parameter(Mandatory)][String]$Secret
     )
-
     $Name = $Name + $(if ($script:duplicateForm -eq $true) { $script:duplicateFormSuffix })
-
     try {
         $uri = ($script:PortalBaseUrl + "api/v1/automation/variables/named/$Name")
         $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
@@ -98,7 +92,6 @@ function Invoke-HelloIDGlobalVariable {
             $uri = ($script:PortalBaseUrl + "api/v1/automation/variable")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
             $variableGuid = $response.automationVariableGuid
-
             Write-Information "Variable '$Name' created$(if ($script:debugLogging -eq $true) { ": " + $variableGuid })"
         } else {
             $variableGuid = $response.automationVariableGuid
@@ -108,7 +101,6 @@ function Invoke-HelloIDGlobalVariable {
         Write-Error "Variable '$Name', message: $_"
     }
 }
-
 function Invoke-HelloIDAutomationTask {
     param(
         [parameter(Mandatory)][String]$TaskName,
@@ -122,7 +114,6 @@ function Invoke-HelloIDAutomationTask {
     )
     
     $TaskName = $TaskName + $(if ($script:duplicateForm -eq $true) { $script:duplicateFormSuffix })
-
     try {
         $uri = ($script:PortalBaseUrl +"api/v1/automationtasks?search=$TaskName&container=$AutomationContainer")
         $responseRaw = (Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false) 
@@ -130,7 +121,6 @@ function Invoke-HelloIDAutomationTask {
     
         if([string]::IsNullOrEmpty($response.automationTaskGuid) -or $ForceCreateTask -eq $true) {
             #Create Task
-
             $body = @{
                 name                = $TaskName;
                 useTemplate         = $UseTemplate;
@@ -144,7 +134,6 @@ function Invoke-HelloIDAutomationTask {
             $uri = ($script:PortalBaseUrl +"api/v1/automationtasks/powershell")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
             $taskGuid = $response.automationTaskGuid
-
             Write-Information "Powershell task '$TaskName' created$(if ($script:debugLogging -eq $true) { ": " + $taskGuid })"
         } else {
             #Get TaskGUID
@@ -154,10 +143,8 @@ function Invoke-HelloIDAutomationTask {
     } catch {
         Write-Error "Powershell task '$TaskName', message: $_"
     }
-
     $returnObject.Value = $taskGuid
 }
-
 function Invoke-HelloIDDatasource {
     param(
         [parameter(Mandatory)][String]$DatasourceName,
@@ -169,9 +156,7 @@ function Invoke-HelloIDDatasource {
         [parameter()][String][AllowEmptyString()]$AutomationTaskGuid,
         [parameter(Mandatory)][Ref]$returnObject
     )
-
     $DatasourceName = $DatasourceName + $(if ($script:duplicateForm -eq $true) { $script:duplicateFormSuffix })
-
     $datasourceTypeName = switch($DatasourceType) { 
         "1" { "Native data source"; break} 
         "2" { "Static data source"; break} 
@@ -209,10 +194,8 @@ function Invoke-HelloIDDatasource {
     } catch {
       Write-Error "$datasourceTypeName '$DatasourceName', message: $_"
     }
-
     $returnObject.Value = $datasourceGuid
 }
-
 function Invoke-HelloIDDynamicForm {
     param(
         [parameter(Mandatory)][String]$FormName,
@@ -221,7 +204,6 @@ function Invoke-HelloIDDynamicForm {
     )
     
     $FormName = $FormName + $(if ($script:duplicateForm -eq $true) { $script:duplicateFormSuffix })
-
     try {
         try {
             $uri = ($script:PortalBaseUrl +"api/v1/forms/$FormName")
@@ -250,11 +232,8 @@ function Invoke-HelloIDDynamicForm {
     } catch {
         Write-Error "Dynamic form '$FormName', message: $_"
     }
-
     $returnObject.Value = $formGuid
 }
-
-
 function Invoke-HelloIDDelegatedForm {
     param(
         [parameter(Mandatory)][String]$DelegatedFormName,
@@ -263,11 +242,11 @@ function Invoke-HelloIDDelegatedForm {
         [parameter()][String][AllowEmptyString()]$Categories,
         [parameter(Mandatory)][String]$UseFaIcon,
         [parameter()][String][AllowEmptyString()]$FaIcon,
+        [parameter()][String][AllowEmptyString()]$task,
         [parameter(Mandatory)][Ref]$returnObject
     )
     $delegatedFormCreated = $false
     $DelegatedFormName = $DelegatedFormName + $(if ($script:duplicateForm -eq $true) { $script:duplicateFormSuffix })
-
     try {
         try {
             $uri = ($script:PortalBaseUrl +"api/v1/delegatedforms/$DelegatedFormName")
@@ -285,6 +264,7 @@ function Invoke-HelloIDDelegatedForm {
                 accessGroups    = (ConvertFrom-Json-WithEmptyArray($AccessGroups));
                 useFaIcon       = $UseFaIcon;
                 faIcon          = $FaIcon;
+                task            = ConvertFrom-Json -inputObject $task;
             }    
             $body = ConvertTo-Json -InputObject $body
     
@@ -294,7 +274,6 @@ function Invoke-HelloIDDelegatedForm {
             $delegatedFormGuid = $response.delegatedFormGUID
             Write-Information "Delegated form '$DelegatedFormName' created$(if ($script:debugLogging -eq $true) { ": " + $delegatedFormGuid })"
             $delegatedFormCreated = $true
-
             $bodyCategories = $Categories
             $uri = ($script:PortalBaseUrl +"api/v1/delegatedforms/$delegatedFormGuid/categories")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $bodyCategories
@@ -307,10 +286,10 @@ function Invoke-HelloIDDelegatedForm {
     } catch {
         Write-Error "Delegated form '$DelegatedFormName', message: $_"
     }
-
     $returnObject.value.guid = $delegatedFormGuid
     $returnObject.value.created = $delegatedFormCreated
 }
+
 <# Begin: HelloID Global Variables #>
 foreach ($item in $globalHelloIDVariables) {
 	Invoke-HelloIDGlobalVariable -Name $item.name -Value $item.value -Secret $item.secret 
@@ -319,1300 +298,1062 @@ foreach ($item in $globalHelloIDVariables) {
 
 
 <# Begin: HelloID Data sources #>
-<# Begin: DataSource "Teams-get-teams" #>
-$tmpScript = @'
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
 #Input: TeamsAdminUser
 #Input: TeamsAdminPWD
 
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
 $connected = $false
 try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
 	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
 }
 catch
 {	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_11 = [PSCustomObject]@{} 
+$dataSourceGuid_11_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_11_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_11) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_1 = [PSCustomObject]@{} 
+$dataSourceGuid_1_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_1_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_1) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_7 = [PSCustomObject]@{} 
+$dataSourceGuid_7_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_7_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_7) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_6 = [PSCustomObject]@{} 
+$dataSourceGuid_6_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_6_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_6) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_2 = [PSCustomObject]@{} 
+$dataSourceGuid_2_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_2_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_2) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_4 = [PSCustomObject]@{} 
+$dataSourceGuid_4_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_4_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_4) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_13 = [PSCustomObject]@{} 
+$dataSourceGuid_13_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_13_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_13) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_16 = [PSCustomObject]@{} 
+$dataSourceGuid_16_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_16_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_16) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_12 = [PSCustomObject]@{} 
+$dataSourceGuid_12_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_12_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_12) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_14 = [PSCustomObject]@{} 
+$dataSourceGuid_14_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_14_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_14) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_3 = [PSCustomObject]@{} 
+$dataSourceGuid_3_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_3_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_3) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_10 = [PSCustomObject]@{} 
+$dataSourceGuid_10_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_10_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_10) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-teams" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
 }
 
 if ($connected)
 {
 	try {
 	    $teams = Get-Team
+        Write-Information "Result count: $(@($teams).Count)"
 
         if(@($teams).Count -gt 0){
-         foreach($team in $teams)
+            foreach($team in $teams)
             {
-                $addRow = @{DisplayName=$team.DisplayName; Description=$team.Description; MailNickName=$team.MailNickName; Visibility=$team.Visibility; Archived=$team.Archived; GroupId=$team.GroupId;}
-                Hid-Write-Status -Message "$addRow" -Event Information
-                Hid-Add-TaskResult -ResultValue $addRow
+                $resultObject = @{DisplayName=$team.DisplayName; Description=$team.Description; MailNickName=$team.MailNickName; Visibility=$team.Visibility; Archived=$team.Archived; GroupId=$team.GroupId;}
+                Write-Output $resultObject
             }
-        }else{
-            Hid-Add-TaskResult -ResultValue []
         }
 	}
 	catch
 	{
-		HID-Write-Status -Message "Error getting Teams. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Teams" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
+		Write-Error "Error getting Teams. Error: $($_.Exception.Message)"
 	}
 }
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
 
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_0_Name = @'
-Teams-Get-teams
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_0_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"Filter for DisplayName","translateDescription":false,"inputFieldType":1,"key":"filterDisplayName","type":0,"options":0}]
 '@ 
 $tmpModel = @'
-[{"key":"Archived","type":0},{"key":"Description","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
+[{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0}]
+'@ 
+$tmpInput = @'
+[]
 '@ 
 $dataSourceGuid_0 = [PSCustomObject]@{} 
 $dataSourceGuid_0_Name = @'
-Teams-get-teams
+Edit-Team-Details-Teams-get-teams
 '@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_0_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_0) 
-<# End: DataSource "Teams-get-teams" #>
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_0_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_0) 
+<# End: DataSource "Edit-Team-Details-Teams-get-teams" #>
 
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
 #Input: TeamsAdminUser
 #Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
 $groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
 
 $connected = $false
 try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
 	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
 }
 catch
 {	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
 }
 
 if ($connected)
 {
 	try {
-	    $teams = Get-Team -GroupId $groupId
-
+        $teams = Get-Team -GroupId $groupId
+        
         if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
             {
-                $returnObject.add($tmp.Name,$tmp.value)
+                $returnObject = $team
+                Write-Output $returnObject
             }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
         }
 	}
 	catch
 	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
 }
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_16_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_16_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
 '@ 
 $tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
 '@ 
-$dataSourceGuid_16 = [PSCustomObject]@{} 
-$dataSourceGuid_16_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_16_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_16) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_15_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_15_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
-'@ 
-$dataSourceGuid_15 = [PSCustomObject]@{} 
-$dataSourceGuid_15_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_15_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_15) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_1_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_1_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
-'@ 
-$dataSourceGuid_1 = [PSCustomObject]@{} 
-$dataSourceGuid_1_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_1_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_1) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_3_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_3_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
-'@ 
-$dataSourceGuid_3 = [PSCustomObject]@{} 
-$dataSourceGuid_3_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_3_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_3) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_5_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_5_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
-'@ 
-$dataSourceGuid_5 = [PSCustomObject]@{} 
-$dataSourceGuid_5_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_5_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_5) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_11_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_11_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
-'@ 
-$dataSourceGuid_11 = [PSCustomObject]@{} 
-$dataSourceGuid_11_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_11_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_11) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_13_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_13_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
-'@ 
-$dataSourceGuid_13 = [PSCustomObject]@{} 
-$dataSourceGuid_13_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_13_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_13) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_12_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_12_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
-'@ 
-$dataSourceGuid_12 = [PSCustomObject]@{} 
-$dataSourceGuid_12_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_12_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_12) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_10_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_10_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
-'@ 
-$dataSourceGuid_10 = [PSCustomObject]@{} 
-$dataSourceGuid_10_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_10_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_10) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_2_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_2_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
-'@ 
-$dataSourceGuid_2 = [PSCustomObject]@{} 
-$dataSourceGuid_2_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_2_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_2) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_4_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_4_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
-'@ 
-$dataSourceGuid_4 = [PSCustomObject]@{} 
-$dataSourceGuid_4_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_4_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_4) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_6_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_6_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
-'@ 
-$dataSourceGuid_6 = [PSCustomObject]@{} 
-$dataSourceGuid_6_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_6_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_6) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_7_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_7_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
-'@ 
-$dataSourceGuid_7 = [PSCustomObject]@{} 
-$dataSourceGuid_7_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_7_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_7) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_9_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_9_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
 '@ 
 $dataSourceGuid_9 = [PSCustomObject]@{} 
 $dataSourceGuid_9_Name = @'
-Teams-get-team-parameters
+Edit-Team-Details-Teams-get-team-parameters
 '@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_9_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_9) 
-<# End: DataSource "Teams-get-team-parameters" #>
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_9_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_9) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
 
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
 #Input: TeamsAdminUser
 #Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
 $groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
 
 $connected = $false
 try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
 	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
 }
 catch
 {	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
 }
 
 if ($connected)
 {
 	try {
-	    $teams = Get-Team -GroupId $groupId
-
+        $teams = Get-Team -GroupId $groupId
+        
         if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
             {
-                $returnObject.add($tmp.Name,$tmp.value)
+                $returnObject = $team
+                Write-Output $returnObject
             }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
         }
 	}
 	catch
 	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
 }
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_14_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_14_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
-$tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
 '@ 
 $tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
 '@ 
-$dataSourceGuid_14 = [PSCustomObject]@{} 
-$dataSourceGuid_14_Name = @'
-Teams-get-team-parameters
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_14_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_14) 
-<# End: DataSource "Teams-get-team-parameters" #>
-
-<# Begin: DataSource "Teams-get-team-parameters" #>
-$tmpScript = @'
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-$groupId = $formInput.selectedGroup.GroupId
-#$groupId = '0293ec24-013d-4a3a-ba2b-7836ef8f15dd'
-
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText ?Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-
-if ($connected)
-{
-	try {
-	    $teams = Get-Team -GroupId $groupId
-
-        if(@($teams).Count -eq 1){
-         $returnObject = [ordered]@{}
-         foreach($tmp in $teams.psObject.properties)
-            {
-                $returnObject.add($tmp.Name,$tmp.value)
-            }
-         Hid-Add-TaskResult -ResultValue $returnObject
-        }else{
-            Hid-Add-TaskResult -ResultValue []
-        }
-	}
-	catch
-	{
-		HID-Write-Status -Message "Error getting Team Parameters. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Error getting Team Parameters" -Event Failed
-		Hid-Add-TaskResult -ResultValue []
-	}
-}
-else
-{
-	Hid-Add-TaskResult -ResultValue []
-}
-
-'@; 
-
-$tmpVariables = @'
-
-'@ 
-
-$taskGuid = [PSCustomObject]@{} 
-$dataSourceGuid_8_Name = @'
-teams-get-team-parameters
-'@ 
-Invoke-HelloIDAutomationTask -TaskName $dataSourceGuid_8_Name -UseTemplate "False" -AutomationContainer "1" -Variables $tmpVariables -PowershellScript $tmpScript -returnObject ([Ref]$taskGuid) 
-
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
-'@ 
-$tmpModel = @'
-[{"key":"Description","type":0},{"key":"Archived","type":0},{"key":"GroupId","type":0},{"key":"DisplayName","type":0},{"key":"MailNickName","type":0},{"key":"Visibility","type":0}]
 '@ 
 $dataSourceGuid_8 = [PSCustomObject]@{} 
 $dataSourceGuid_8_Name = @'
-Teams-get-team-parameters
+Edit-Team-Details-Teams-get-team-parameters
 '@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_8_Name -DatasourceType "3" -DatasourceInput $tmpInput -DatasourceModel $tmpModel -AutomationTaskGuid $taskGuid -returnObject ([Ref]$dataSourceGuid_8) 
-<# End: DataSource "Teams-get-team-parameters" #>
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_8_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_8) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_15 = [PSCustomObject]@{} 
+$dataSourceGuid_15_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_15_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_15) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+
+<# Begin: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
+$tmpPsScript = @'
+#Input: TeamsAdminUser
+#Input: TeamsAdminPWD
+
+# Set TLS to accept TLS, TLS 1.1 and TLS 1.2
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# variables configured in form
+$groupId = $formInput.selectedGroup.GroupId
+
+$connected = $false
+try {
+	$module = Import-Module MicrosoftTeams
+	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
+	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
+	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
+    Write-Information "Connected to Microsoft Teams"
+    $connected = $true
+}
+catch
+{	
+    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+}
+
+if ($connected)
+{
+	try {
+        $teams = Get-Team -GroupId $groupId
+        
+        if(@($teams).Count -eq 1){
+        #  foreach($tmp in $teams.psObject.properties)
+         foreach($team in $teams)
+            {
+                $returnObject = $team
+                Write-Output $returnObject
+            }
+        }
+	}
+	catch
+	{
+		Write-Error "Error getting Team Details. Error: $($_.Exception.Message)"
+    }
+}
+'@ 
+$tmpModel = @'
+[{"key":"GroupId","type":0},{"key":"InternalId","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0},{"key":"Archived","type":0},{"key":"AllowGiphy","type":0},{"key":"GiphyContentRating","type":0},{"key":"AllowStickersAndMemes","type":0},{"key":"AllowCustomMemes","type":0},{"key":"AllowGuestCreateUpdateChannels","type":0},{"key":"AllowGuestDeleteChannels","type":0},{"key":"AllowCreateUpdateChannels","type":0},{"key":"AllowCreatePrivateChannels","type":0},{"key":"AllowDeleteChannels","type":0},{"key":"AllowAddRemoveApps","type":0},{"key":"AllowCreateUpdateRemoveTabs","type":0},{"key":"AllowCreateUpdateRemoveConnectors","type":0},{"key":"AllowUserEditMessages","type":0},{"key":"AllowUserDeleteMessages","type":0},{"key":"AllowOwnerDeleteMessages","type":0},{"key":"AllowTeamMentions","type":0},{"key":"AllowChannelMentions","type":0},{"key":"ShowInTeamsSearchAndSuggestions","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_5 = [PSCustomObject]@{} 
+$dataSourceGuid_5_Name = @'
+Edit-Team-Details-Teams-get-team-parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_5_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_5) 
+<# End: DataSource "Edit-Team-Details-Teams-get-team-parameters" #>
 <# End: HelloID Data sources #>
 
 <# Begin: Dynamic Form "Teams - Edit Team Details" #>
 $tmpSchema = @"
-[{"label":"Select Team","fields":[{"key":"filterDisplayName","templateOptions":{"label":"Search for DisplayName","required":false},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"teams","templateOptions":{"label":"Select Team","required":true,"grid":{"columns":[{"headerName":"Display Name","field":"DisplayName"},{"headerName":"Description","field":"Description"},{"headerName":"Mail Nick Name","field":"MailNickName"},{"headerName":"Visibility","field":"Visibility"},{"headerName":"Archived","field":"Archived"},{"headerName":"Group Id","field":"GroupId"}],"height":300,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_0","input":{"propertyInputs":[{"propertyName":"filterDisplayName","otherFieldValue":{"otherFieldKey":"filterDisplayName"}}]}},"useFilter":false,"useDefault":false},"type":"grid","summaryVisibility":"Show","requiresTemplateOptions":true}]},{"label":"Edit Team Details","fields":[{"key":"AllowAddRemoveApps","templateOptions":{"label":"AllowAddRemoveApps","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowAddRemoveApps","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_1","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowChannelMentions","templateOptions":{"label":"AllowChannelMentions","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowChannelMentions","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_2","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowCreateUpdateChannels","templateOptions":{"label":"AllowCreateUpdateChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowCreateUpdateChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_3","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowCreateUpdateRemoveConnectors","templateOptions":{"label":"AllowCreateUpdateRemoveConnectors","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowCreateUpdateRemoveConnectors","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_4","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowCreateUpdateRemoveTabs","templateOptions":{"label":"AllowCreateUpdateRemoveTabs","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowCreateUpdateRemoveTabs","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_5","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowCustomMemes","templateOptions":{"label":"AllowCustomMemes","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowCustomMemes","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_6","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowDeleteChannels","templateOptions":{"label":"AllowDeleteChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowDeleteChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_7","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowGiphy","templateOptions":{"label":"AllowGiphy","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowGiphy","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_8","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowGuestCreateUpdateChannels","templateOptions":{"label":"AllowGuestCreateUpdateChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowGuestCreateUpdateChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_9","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowGuestDeleteChannels","templateOptions":{"label":"AllowGuestDeleteChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowGuestDeleteChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_10","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowOwnerDeleteMessages","templateOptions":{"label":"AllowOwnerDeleteMessages","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowOwnerDeleteMessages","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_11","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowStickersAndMemes","templateOptions":{"label":"AllowStickersAndMemes","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowStickersAndMemes","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_12","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowTeamMentions","templateOptions":{"label":"AllowTeamMentions","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowTeamMentions","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_13","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowUserDeleteMessages","templateOptions":{"label":"AllowUserDeleteMessages","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowUserDeleteMessages","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_14","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"AllowUserEditMessages","templateOptions":{"label":"AllowUserEditMessages","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowUserEditMessages","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_15","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true},{"key":"ShowInTeamsSearchAndSuggestions","templateOptions":{"label":"ShowInTeamsSearchAndSuggestions","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"ShowInTeamsSearchAndSuggestions","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_16","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true}]}]
+[{"label":"Select Team","fields":[{"key":"teams","templateOptions":{"label":"Select team","required":true,"grid":{"columns":[{"headerName":"Description","field":"Description"},{"headerName":"Visibility","field":"Visibility"},{"headerName":"Mail Nick Name","field":"MailNickName"},{"headerName":"Archived","field":"Archived"},{"headerName":"Group Id","field":"GroupId"},{"headerName":"Display Name","field":"DisplayName"}],"height":300,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_0","input":{"propertyInputs":[]}},"useFilter":true,"useDefault":false},"type":"grid","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":true}]},{"label":"Edit Team Details","fields":[{"key":"AllowAddRemoveApps","templateOptions":{"label":"AllowAddRemoveApps","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowAddRemoveApps","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_1","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowChannelMentions","templateOptions":{"label":"AllowChannelMentions","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowChannelMentions","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_2","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowCreateUpdateChannels","templateOptions":{"label":"AllowCreateUpdateChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowCreateUpdateChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_3","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowCreateUpdateRemoveConnectors","templateOptions":{"label":"AllowCreateUpdateRemoveConnectors","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowCreateUpdateRemoveConnectors","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_4","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowCreateUpdateRemoveTabs","templateOptions":{"label":"AllowCreateUpdateRemoveTabs","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowCreateUpdateRemoveTabs","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_5","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowCustomMemes","templateOptions":{"label":"AllowCustomMemes","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowCustomMemes","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_6","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowDeleteChannels","templateOptions":{"label":"AllowDeleteChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowDeleteChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_7","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowGiphy","templateOptions":{"label":"AllowGiphy","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowGiphy","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_8","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowGuestCreateUpdateChannels","templateOptions":{"label":"AllowGuestCreateUpdateChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowGuestCreateUpdateChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_9","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowGuestDeleteChannels","templateOptions":{"label":"AllowGuestDeleteChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowGuestDeleteChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_10","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowOwnerDeleteMessages","templateOptions":{"label":"AllowOwnerDeleteMessages","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowOwnerDeleteMessages","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_11","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowStickersAndMemes","templateOptions":{"label":"AllowStickersAndMemes","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowStickersAndMemes","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_12","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowTeamMentions","templateOptions":{"label":"AllowTeamMentions","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowTeamMentions","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_13","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowUserDeleteMessages","templateOptions":{"label":"AllowUserDeleteMessages","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowUserDeleteMessages","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_14","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowUserEditMessages","templateOptions":{"label":"AllowUserEditMessages","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"AllowUserEditMessages","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_15","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"ShowInTeamsSearchAndSuggestions","templateOptions":{"label":"ShowInTeamsSearchAndSuggestions","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"ShowInTeamsSearchAndSuggestions","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_16","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}]}]
 "@ 
 
 $dynamicFormGuid = [PSCustomObject]@{} 
@@ -1637,7 +1378,6 @@ foreach($group in $delegatedFormAccessGroupNames) {
     }
 }
 $delegatedFormAccessGroupGuids = ($delegatedFormAccessGroupGuids | Select-Object -Unique | ConvertTo-Json -Compress)
-
 $delegatedFormCategoryGuids = @()
 foreach($category in $delegatedFormCategories) {
     try {
@@ -1653,12 +1393,10 @@ foreach($category in $delegatedFormCategories) {
             name = @{"en" = $category};
         }
         $body = ConvertTo-Json -InputObject $body
-
         $uri = ($script:PortalBaseUrl +"api/v1/delegatedformcategories")
         $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
         $tmpGuid = $response.delegatedFormCategoryGuid
         $delegatedFormCategoryGuids += $tmpGuid
-
         Write-Information "HelloID Delegated Form category '$category' successfully created$(if ($script:debugLogging -eq $true) { ": " + $tmpGuid })"
     }
 }
@@ -1670,52 +1408,10 @@ $delegatedFormRef = [PSCustomObject]@{guid = $null; created = $null}
 $delegatedFormName = @'
 Teams - Edit Team Details
 '@
-Invoke-HelloIDDelegatedForm -DelegatedFormName $delegatedFormName -DynamicFormGuid $dynamicFormGuid -AccessGroups $delegatedFormAccessGroupGuids -Categories $delegatedFormCategoryGuids -UseFaIcon "True" -FaIcon "fa fa-pencil-square" -returnObject ([Ref]$delegatedFormRef) 
-<# End: Delegated Form #>
-
-<# Begin: Delegated Form Task #>
-if($delegatedFormRef.created -eq $true) { 
-	$tmpScript = @'
-$connected = $false
-try {
-	Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	Connect-MicrosoftTeams -Credential $cred
-    HID-Write-Status -Message "Connected to Microsoft Teams" -Event Information
-    HID-Write-Summary -Message "Connected to Microsoft Teams" -Event Information
-	$connected = $true
-}
-catch
-{	
-    HID-Write-Status -Message "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)" -Event Error
-    HID-Write-Summary -Message "Failed to connect to Microsoft Teams" -Event Failed
-}
-if ($connected)
-{
-	try {
-		Set-Team -groupId $groupId -AllowAddRemoveApps $AllowAddRemoveApps -AllowChannelMentions $AllowChannelMentions -AllowCreateUpdateChannels $AllowCreateUpdateChannels -AllowCreateUpdateRemoveConnectors $AllowCreateUpdateRemoveConnectors -AllowCreateUpdateRemoveTabs $AllowCreateUpdateRemoveTabs -AllowCustomMemes $AllowCustomMemes -AllowDeleteChannels $AllowDeleteChannels -AllowGiphy $AllowGiphy -AllowGuestCreateUpdateChannels $AllowGuestCreateUpdateChannels -AllowGuestDeleteChannels $AllowGuestDeleteChannels -AllowOwnerDeleteMessages $AllowOwnerDeleteMessages -AllowStickersAndMemes $AllowStickersAndMemes -AllowTeamMentions $AllowTeamMentions -AllowUserDeleteMessages $AllowUserDeleteMessages -AllowUserEditMessages $AllowUserEditMessages -ShowInTeamsSearchAndSuggestions $ShowInTeamsSearchAndSuggestions
-		HID-Write-Status -Message "Updated Team [$groupId]" -Event Success
-		HID-Write-Summary -Message "Successfully update Team [$groupId]" -Event Success
-	}
-	catch
-	{
-		HID-Write-Status -Message "Could not update Team [$groupId]. Error: $($_.Exception.Message)" -Event Error
-		HID-Write-Summary -Message "Failed to update Team [$groupId]" -Event Failed
-	}
-}
-'@; 
-
-	$tmpVariables = @'
-[{"name":"AllowAddRemoveApps","value":"{{form.AllowAddRemoveApps}}","secret":false,"typeConstraint":"string"},{"name":"AllowChannelMentions","value":"{{form.AllowChannelMentions}}","secret":false,"typeConstraint":"string"},{"name":"AllowCreateUpdateChannels","value":"{{form.AllowCreateUpdateChannels}}","secret":false,"typeConstraint":"string"},{"name":"AllowCreateUpdateRemoveConnectors","value":"{{form.AllowCreateUpdateRemoveConnectors}}","secret":false,"typeConstraint":"string"},{"name":"AllowCreateUpdateRemoveTabs","value":"{{form.AllowCreateUpdateRemoveTabs}}","secret":false,"typeConstraint":"string"},{"name":"AllowCustomMemes","value":"{{form.AllowCustomMemes}}","secret":false,"typeConstraint":"string"},{"name":"AllowDeleteChannels","value":"{{form.AllowDeleteChannels}}","secret":false,"typeConstraint":"string"},{"name":"AllowGiphy","value":"{{form.AllowGiphy}}","secret":false,"typeConstraint":"string"},{"name":"AllowGuestCreateUpdateChannels","value":"{{form.AllowGuestCreateUpdateChannels}}","secret":false,"typeConstraint":"string"},{"name":"AllowGuestDeleteChannels","value":"{{form.AllowGuestDeleteChannels}}","secret":false,"typeConstraint":"string"},{"name":"AllowOwnerDeleteMessages","value":"{{form.AllowOwnerDeleteMessages}}","secret":false,"typeConstraint":"string"},{"name":"AllowStickersAndMemes","value":"{{form.AllowStickersAndMemes}}","secret":false,"typeConstraint":"string"},{"name":"AllowTeamMentions","value":"{{form.AllowTeamMentions}}","secret":false,"typeConstraint":"string"},{"name":"AllowUserDeleteMessages","value":"{{form.AllowUserDeleteMessages}}","secret":false,"typeConstraint":"string"},{"name":"AllowUserEditMessages","value":"{{form.AllowUserEditMessages}}","secret":false,"typeConstraint":"string"},{"name":"groupId","value":"{{form.teams.GroupId}}","secret":false,"typeConstraint":"string"},{"name":"ShowInTeamsSearchAndSuggestions","value":"{{form.ShowInTeamsSearchAndSuggestions}}","secret":false,"typeConstraint":"string"}]
+$tmpTask = @'
+{"name":"Teams - Edit Team Details","script":"#Input: TeamsAdminUser\r\n#Input: TeamsAdminPWD\r\n\r\n# Set TLS to accept TLS, TLS 1.1 and TLS 1.2\r\n[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12\r\n\r\n$VerbosePreference = \"SilentlyContinue\"\r\n$InformationPreference = \"Continue\"\r\n$WarningPreference = \"Continue\"\r\n\r\n# Boolean values come in as string, use this function to convert these to booleans\r\nfunction Convert-StringToBoolean {\r\n    param(\r\n        [parameter(Mandatory = $true)]$String\r\n    )\r\n    try {\r\n        if(-not[String]::IsNullOrEmpty($String)){\r\n            $boolean = [System.Convert]::ToBoolean($String)\r\n            return $boolean\r\n        }else{\r\n            Write-Verbose \"Provided value equals null or empty. Cannot convert to Boolean\"\r\n        }\r\n    } catch {\r\n        throw $_\r\n    }\r\n}\r\n\r\nfunction Remove-EmptyValuesFromHashtable {\r\n    param(\r\n        [parameter(Mandatory = $true)][Hashtable]$Hashtable\r\n    )\r\n\r\n    $newHashtable = @{}\r\n    foreach ($Key in $Hashtable.Keys) {\r\n        if (-not[String]::IsNullOrEmpty($Hashtable.$Key)) {\r\n            $null = $newHashtable.Add($Key, $Hashtable.$Key)\r\n        }\r\n    }\r\n    \r\n    return $newHashtable\r\n}\r\n\r\n# variables configured in form\r\n$groupId                            =   $form.teams.GroupId\r\n$AllowAddRemoveApps                 =   Convert-StringToBoolean $form.AllowAddRemoveApps\r\n$AllowChannelMentions               =   Convert-StringToBoolean $form.AllowChannelMentions\r\n$AllowCreateUpdateChannels          =   Convert-StringToBoolean $form.AllowCreateUpdateChannels\r\n$AllowCreateUpdateRemoveConnectors  =   Convert-StringToBoolean $form.AllowCreateUpdateRemoveConnectors\r\n$AllowCreateUpdateRemoveTabs        =   Convert-StringToBoolean $form.AllowCreateUpdateRemoveTabs \r\n$AllowCustomMemes                   =   Convert-StringToBoolean $form.AllowCustomMemes\r\n$AllowDeleteChannels                =   Convert-StringToBoolean $form.AllowDeleteChannels\r\n$AllowGiphy                         =   Convert-StringToBoolean $form.AllowGiphy\r\n$AllowGuestCreateUpdateChannels     =   Convert-StringToBoolean $form.AllowGuestCreateUpdateChannels\r\n$AllowGuestDeleteChannels           =   Convert-StringToBoolean $form.AllowGuestDeleteChannels\r\n$AllowOwnerDeleteMessages           =   Convert-StringToBoolean $form.AllowOwnerDeleteMessages\r\n$AllowStickersAndMemes              =   Convert-StringToBoolean $form.AllowStickersAndMemes\r\n$AllowTeamMentions                  =   Convert-StringToBoolean $form.AllowTeamMentions\r\n$AllowUserDeleteMessages            =   Convert-StringToBoolean $form.AllowUserDeleteMessages\r\n$AllowUserEditMessages              =   Convert-StringToBoolean $form.AllowUserEditMessages\r\n$ShowInTeamsSearchAndSuggestions    =   Convert-StringToBoolean $form.ShowInTeamsSearchAndSuggestions\r\n\r\n$connected = $false\r\ntry {\r\n\t$module = Import-Module MicrosoftTeams\r\n\t$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force\r\n\t$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd\r\n\t$teamsConnection = Connect-MicrosoftTeams -Credential $cred\r\n    Write-Information \"Connected to Microsoft Teams\"\r\n    $connected = $true\r\n}\r\ncatch\r\n{\t\r\n    Write-Error \"Could not connect to Microsoft Teams. Error: $($_.Exception.Message)\"\r\n}\r\n\r\nif ($connected)\r\n{\r\n\ttry {\r\n        $splatParams = @{\r\n            groupId                             =   $groupId\r\n            AllowAddRemoveApps                  =   $AllowAddRemoveApps\r\n            AllowChannelMentions                =   $AllowChannelMentions\r\n            AllowCreateUpdateChannels           =   $AllowCreateUpdateChannels \r\n            AllowCreateUpdateRemoveConnectors   =   $AllowCreateUpdateRemoveConnectors \r\n            AllowCreateUpdateRemoveTabs         =   $AllowCreateUpdateRemoveTabs \r\n            AllowCustomMemes                    =   $AllowCustomMemes \r\n            AllowDeleteChannels                 =   $AllowDeleteChannels \r\n            AllowGiphy                          =   $AllowGiphy\r\n            AllowGuestCreateUpdateChannels      =   $AllowGuestCreateUpdateChannels\r\n            AllowGuestDeleteChannels            =   $AllowGuestDeleteChannels\r\n            AllowOwnerDeleteMessages            =   $AllowOwnerDeleteMessages\r\n            AllowStickersAndMemes               =   $AllowStickersAndMemes \r\n            AllowTeamMentions                   =   $AllowTeamMentions \r\n            AllowUserDeleteMessages             =   $AllowUserDeleteMessages \r\n            AllowUserEditMessages               =   $AllowUserEditMessages \r\n            ShowInTeamsSearchAndSuggestions     =   $ShowInTeamsSearchAndSuggestions\r\n        }\r\n\r\n        # Remove empty or null values\r\n        $splatParams = Remove-EmptyValuesFromHashtable $splatParams\r\n\r\n\t\t$updateTeam = Set-Team @splatParams\r\n\t\tWrite-Information \"Successfully updated Team [$groupId]\"\r\n\t}\r\n\tcatch\r\n\t{\r\n\t\tWrite-Error \"Could not update Team [$groupId]. Error: $($_.Exception.Message)\"\r\n\t}\r\n}","runInCloud":false}
 '@ 
 
-	$delegatedFormTaskGuid = [PSCustomObject]@{} 
-$delegatedFormTaskName = @'
-Teams-edit-team-details
-'@
-	Invoke-HelloIDAutomationTask -TaskName $delegatedFormTaskName -UseTemplate "False" -AutomationContainer "8" -Variables $tmpVariables -PowershellScript $tmpScript -ObjectGuid $delegatedFormRef.guid -ForceCreateTask $true -returnObject ([Ref]$delegatedFormTaskGuid) 
-} else {
-	Write-Warning "Delegated form '$delegatedFormName' already exists. Nothing to do with the Delegated Form task..." 
-}
-<# End: Delegated Form Task #>
+Invoke-HelloIDDelegatedForm -DelegatedFormName $delegatedFormName -DynamicFormGuid $dynamicFormGuid -AccessGroups $delegatedFormAccessGroupGuids -Categories $delegatedFormCategoryGuids -UseFaIcon "True" -FaIcon "fa fa-pencil-square" -task $tmpTask -returnObject ([Ref]$delegatedFormRef) 
+<# End: Delegated Form #>
+

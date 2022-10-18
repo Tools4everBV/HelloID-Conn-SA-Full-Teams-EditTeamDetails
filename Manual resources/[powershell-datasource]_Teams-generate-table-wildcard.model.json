@@ -1,0 +1,26 @@
+[
+    {
+        "key":  "Visibility",
+        "type":  0
+    },
+    {
+        "key":  "GroupId",
+        "type":  0
+    },
+    {
+        "key":  "Mailaddress",
+        "type":  0
+    },
+    {
+        "key":  "MailNickName",
+        "type":  0
+    },
+    {
+        "key":  "DisplayName",
+        "type":  0
+    },
+    {
+        "key":  "Description",
+        "type":  0
+    }
+]

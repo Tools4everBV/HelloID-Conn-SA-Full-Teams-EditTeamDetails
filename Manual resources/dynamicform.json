@@ -1,526 +1,603 @@
 [
-  {
-    "label": "Select Team",
-    "fields": [
-      {
-        "key": "teams",
-        "templateOptions": {
-          "label": "Select team",
-          "required": true,
-          "grid": {
-            "columns": [
-              {
-                "headerName": "Description",
-                "field": "Description"
-              },
-              {
-                "headerName": "Visibility",
-                "field": "Visibility"
-              },
-              {
-                "headerName": "Mail Nick Name",
-                "field": "MailNickName"
-              },
-              {
-                "headerName": "Archived",
-                "field": "Archived"
-              },
-              {
-                "headerName": "Group Id",
-                "field": "GroupId"
-              },
-              {
-                "headerName": "Display Name",
-                "field": "DisplayName"
-              }
-            ],
-            "height": 300,
-            "rowSelection": "single"
-          },
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_0",
-            "input": {
-              "propertyInputs": []
-            }
-          },
-          "useFilter": true,
-          "useDefault": false
-        },
-        "type": "grid",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": true
-      }
-    ]
-  },
-  {
-    "label": "Edit Team Details",
-    "fields": [
-      {
-        "key": "AllowAddRemoveApps",
-        "templateOptions": {
-          "label": "AllowAddRemoveApps",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowAddRemoveApps",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_1",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowChannelMentions",
-        "templateOptions": {
-          "label": "AllowChannelMentions",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowChannelMentions",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_2",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowCreateUpdateChannels",
-        "templateOptions": {
-          "label": "AllowCreateUpdateChannels",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowCreateUpdateChannels",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_3",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowCreateUpdateRemoveConnectors",
-        "templateOptions": {
-          "label": "AllowCreateUpdateRemoveConnectors",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowCreateUpdateRemoveConnectors",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_4",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowCreateUpdateRemoveTabs",
-        "templateOptions": {
-          "label": "AllowCreateUpdateRemoveTabs",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowCreateUpdateRemoveTabs",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_5",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowCustomMemes",
-        "templateOptions": {
-          "label": "AllowCustomMemes",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowCustomMemes",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_6",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowDeleteChannels",
-        "templateOptions": {
-          "label": "AllowDeleteChannels",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowDeleteChannels",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_7",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowGiphy",
-        "templateOptions": {
-          "label": "AllowGiphy",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowGiphy",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_8",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowGuestCreateUpdateChannels",
-        "templateOptions": {
-          "label": "AllowGuestCreateUpdateChannels",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowGuestCreateUpdateChannels",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_9",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowGuestDeleteChannels",
-        "templateOptions": {
-          "label": "AllowGuestDeleteChannels",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowGuestDeleteChannels",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_10",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowOwnerDeleteMessages",
-        "templateOptions": {
-          "label": "AllowOwnerDeleteMessages",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowOwnerDeleteMessages",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_11",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowStickersAndMemes",
-        "templateOptions": {
-          "label": "AllowStickersAndMemes",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowStickersAndMemes",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_12",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowTeamMentions",
-        "templateOptions": {
-          "label": "AllowTeamMentions",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowTeamMentions",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_13",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowUserDeleteMessages",
-        "templateOptions": {
-          "label": "AllowUserDeleteMessages",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowUserDeleteMessages",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_14",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "AllowUserEditMessages",
-        "templateOptions": {
-          "label": "AllowUserEditMessages",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "AllowUserEditMessages",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_15",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      },
-      {
-        "key": "ShowInTeamsSearchAndSuggestions",
-        "templateOptions": {
-          "label": "ShowInTeamsSearchAndSuggestions",
-          "useSwitch": true,
-          "checkboxLabel": "Allow",
-          "useDataSource": true,
-          "displayField": "ShowInTeamsSearchAndSuggestions",
-          "dataSourceConfig": {
-            "dataSourceGuid": "$dataSourceGuid_16",
-            "input": {
-              "propertyInputs": [
-                {
-                  "propertyName": "selectedGroup",
-                  "otherFieldValue": {
-                    "otherFieldKey": "teams"
-                  }
-                }
-              ]
-            }
-          },
-          "useFilter": false
-        },
-        "type": "boolean",
-        "summaryVisibility": "Show",
-        "requiresTemplateOptions": true,
-        "requiresKey": true,
-        "requiresDataSource": false
-      }
-    ]
-  }
+    {
+        "label":  "Select Team",
+        "fields":  [
+                       {
+                           "key":  "searchValue",
+                           "templateOptions":  {
+                                                   "label":  "Search for displayname",
+                                                   "required":  true
+                                               },
+                           "type":  "input",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "teams",
+                           "templateOptions":  {
+                                                   "label":  "Select team",
+                                                   "required":  true,
+                                                   "grid":  {
+                                                                "columns":  [
+                                                                                {
+                                                                                    "headerName":  "Display Name",
+                                                                                    "field":  "DisplayName"
+                                                                                },
+                                                                                {
+                                                                                    "headerName":  "Description",
+                                                                                    "field":  "Description"
+                                                                                },
+                                                                                {
+                                                                                    "headerName":  "Mail Nick Name",
+                                                                                    "field":  "MailNickName"
+                                                                                },
+                                                                                {
+                                                                                    "headerName":  "Mailaddress",
+                                                                                    "field":  "Mailaddress"
+                                                                                },
+                                                                                {
+                                                                                    "headerName":  "Visibility",
+                                                                                    "field":  "Visibility"
+                                                                                },
+                                                                                {
+                                                                                    "headerName":  "Group Id",
+                                                                                    "field":  "GroupId"
+                                                                                }
+                                                                            ],
+                                                                "height":  300,
+                                                                "rowSelection":  "single"
+                                                            },
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_0",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "searchValue",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "searchValue"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  true,
+                                                   "useDefault":  false
+                                               },
+                           "type":  "grid",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  true
+                       }
+                   ]
+    },
+    {
+        "label":  "Edit Team Details",
+        "fields":  [
+                       {
+                           "key":  "AllowCreatePrivateChannels",
+                           "templateOptions":  {
+                                                   "label":  "AllowCreatePrivateChannels",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "m_allowCreatePrivateChannels",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_1",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowCreateUpdateChannels",
+                           "templateOptions":  {
+                                                   "label":  "AllowCreateUpdateChannels",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "m_allowCreateUpdateChannels",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_2",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowDeleteChannels",
+                           "templateOptions":  {
+                                                   "label":  "AllowDeleteChannels",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "m_allowDeleteChannels",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_3",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowAddRemoveApps",
+                           "templateOptions":  {
+                                                   "label":  "AllowAddRemoveApps",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "m_allowAddRemoveApps",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_4",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowCreateUpdateRemoveTabs",
+                           "templateOptions":  {
+                                                   "label":  "AllowCreateUpdateRemoveTabs",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "m_allowCreateUpdateRemoveTabs",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_5",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowCreateUpdateRemoveConnectors",
+                           "templateOptions":  {
+                                                   "label":  "AllowCreateUpdateRemoveConnectors",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "m_allowCreateUpdateRemoveConnectors",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_6",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowGuestCreateUpdateChannels",
+                           "templateOptions":  {
+                                                   "label":  "AllowGuestCreateUpdateChannels",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "g_allowCreateUpdateChannels",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_7",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowGuestDeleteChannels",
+                           "templateOptions":  {
+                                                   "label":  "AllowGuestDeleteChannels",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "g_allowDeleteChannels",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_8",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowUserEditMessages",
+                           "templateOptions":  {
+                                                   "label":  "AllowUserEditMessages",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "mes_allowUserEditMessages",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_9",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowUserDeleteMessages",
+                           "templateOptions":  {
+                                                   "label":  "AllowUserDeleteMessages",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "mes_allowUserDeleteMessages",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_10",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowOwnerDeleteMessages",
+                           "templateOptions":  {
+                                                   "label":  "AllowOwnerDeleteMessages",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "mes_allowOwnerDeleteMessages",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_11",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowTeamMentions",
+                           "templateOptions":  {
+                                                   "label":  "AllowTeamMentions",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "mes_allowTeamMentions",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_12",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowChannelMentions",
+                           "templateOptions":  {
+                                                   "label":  "AllowChannelMentions",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "mes_allowChannelMentions",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_13",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowGiphy",
+                           "templateOptions":  {
+                                                   "label":  "AllowGiphy",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "f_allowGiphy",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_14",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "GiphyContentRating",
+                           "templateOptions":  {
+                                                   "label":  "GiphyContentRating",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "f_giphyContentRating",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_15",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowStickersAndMemes",
+                           "templateOptions":  {
+                                                   "label":  "AllowStickersAndMemes",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "f_allowStickersAndMemes",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_16",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "AllowCustomMemes",
+                           "templateOptions":  {
+                                                   "label":  "AllowCustomMemes",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "f_allowCustomMemes",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_17",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "ShowInTeamsSearchAndSuggestions",
+                           "templateOptions":  {
+                                                   "label":  "ShowInTeamsSearchAndSuggestions",
+                                                   "useSwitch":  true,
+                                                   "checkboxLabel":  "Allow",
+                                                   "useDataSource":  true,
+                                                   "displayField":  "b_showInTeamsSearchAndSuggestions",
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_18",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedGroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "useFilter":  false
+                                               },
+                           "type":  "boolean",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       }
+                   ]
+    }
 ]

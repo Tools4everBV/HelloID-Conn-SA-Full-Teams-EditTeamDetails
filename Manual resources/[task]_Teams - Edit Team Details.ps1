@@ -1,109 +1,147 @@
-#Input: TeamsAdminUser
-#Input: TeamsAdminPWD
-
 # Set TLS to accept TLS, TLS 1.1 and TLS 1.2
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12
+
+$baseGraphUri = "https://graph.microsoft.com/"
 
 $VerbosePreference = "SilentlyContinue"
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
-# Boolean values come in as string, use this function to convert these to booleans
-function Convert-StringToBoolean {
-    param(
-        [parameter(Mandatory = $true)]$String
-    )
-    try {
-        if(-not[String]::IsNullOrEmpty($String)){
-            $boolean = [System.Convert]::ToBoolean($String)
-            return $boolean
-        }else{
-            Write-Verbose "Provided value equals null or empty. Cannot convert to Boolean"
-        }
-    } catch {
-        throw $_
-    }
-}
-
-function Remove-EmptyValuesFromHashtable {
-    param(
-        [parameter(Mandatory = $true)][Hashtable]$Hashtable
-    )
-
-    $newHashtable = @{}
-    foreach ($Key in $Hashtable.Keys) {
-        if (-not[String]::IsNullOrEmpty($Hashtable.$Key)) {
-            $null = $newHashtable.Add($Key, $Hashtable.$Key)
-        }
-    }
-    
-    return $newHashtable
-}
-
 # variables configured in form
-$groupId                            =   $form.teams.GroupId
-$AllowAddRemoveApps                 =   Convert-StringToBoolean $form.AllowAddRemoveApps
-$AllowChannelMentions               =   Convert-StringToBoolean $form.AllowChannelMentions
-$AllowCreateUpdateChannels          =   Convert-StringToBoolean $form.AllowCreateUpdateChannels
-$AllowCreateUpdateRemoveConnectors  =   Convert-StringToBoolean $form.AllowCreateUpdateRemoveConnectors
-$AllowCreateUpdateRemoveTabs        =   Convert-StringToBoolean $form.AllowCreateUpdateRemoveTabs 
-$AllowCustomMemes                   =   Convert-StringToBoolean $form.AllowCustomMemes
-$AllowDeleteChannels                =   Convert-StringToBoolean $form.AllowDeleteChannels
-$AllowGiphy                         =   Convert-StringToBoolean $form.AllowGiphy
-$AllowGuestCreateUpdateChannels     =   Convert-StringToBoolean $form.AllowGuestCreateUpdateChannels
-$AllowGuestDeleteChannels           =   Convert-StringToBoolean $form.AllowGuestDeleteChannels
-$AllowOwnerDeleteMessages           =   Convert-StringToBoolean $form.AllowOwnerDeleteMessages
-$AllowStickersAndMemes              =   Convert-StringToBoolean $form.AllowStickersAndMemes
-$AllowTeamMentions                  =   Convert-StringToBoolean $form.AllowTeamMentions
-$AllowUserDeleteMessages            =   Convert-StringToBoolean $form.AllowUserDeleteMessages
-$AllowUserEditMessages              =   Convert-StringToBoolean $form.AllowUserEditMessages
-$ShowInTeamsSearchAndSuggestions    =   Convert-StringToBoolean $form.ShowInTeamsSearchAndSuggestions
+$groupId     =   $form.teams.GroupId
+$displayName = $form.teams.DisplayName
 
-$connected = $false
+if ($form.giphyContentRating -eq "true") { $giphyContentRating = "Strict" } else { $giphyContentRating = "Moderate" }
+
+# Create authorization token and add to headers
 try {
-	$module = Import-Module MicrosoftTeams
-	$pwd = ConvertTo-SecureString -string $TeamsAdminPWD -AsPlainText -Force
-	$cred = New-Object System.Management.Automation.PSCredential $TeamsAdminUser, $pwd
-	$teamsConnection = Connect-MicrosoftTeams -Credential $cred
-    Write-Information "Connected to Microsoft Teams"
-    $connected = $true
+    Write-Information "Generating Microsoft Graph API Access Token"
+
+    $baseUri = "https://login.microsoftonline.com/"
+    $authUri = $baseUri + "$AADTenantID/oauth2/token"
+
+    $body = @{
+        grant_type    = "client_credentials"
+        client_id     = "$AADAppId"
+        client_secret = "$AADAppSecret"
+        resource      = "https://graph.microsoft.com"
+    }
+
+    $Response = Invoke-RestMethod -Method POST -Uri $authUri -Body $body -ContentType 'application/x-www-form-urlencoded'
+    $accessToken = $Response.access_token;
+
+    #Add the authorization header to the request
+    $authorization = @{
+        Authorization  = "Bearer $accesstoken";
+        'Content-Type' = "application/json";
+        Accept         = "application/json";
+    }
+}
+catch {
+    throw "Could not generate Microsoft Graph API Access Token. Error: $($_.Exception.Message)"    
+}
+
+
+try {
+	$updateTeamUri = $baseGraphUri + "v1.0/teams/$groupId"
+
+    $teambody = 
+        @"
+    {
+        "memberSettings": {
+            "allowCreatePrivateChannels" : "$($form.AllowCreatePrivateChannels)",
+            "allowCreateUpdateChannels": "$($form.AllowCreateUpdateChannels)",
+            "allowDeleteChannels": "$($form.AllowDeleteChannels)",
+            "allowAddRemoveApps": "$($form.AllowAddRemoveApps)",
+            "allowCreateUpdateRemoveTabs": "$($form.AllowCreateUpdateRemoveTabs)",
+            "allowCreateUpdateRemoveConnectors": "$($form.AllowCreateUpdateRemoveConnectors)"
+        },
+        "guestSettings": {
+            "allowCreateUpdateChannels": "$($form.AllowGuestCreateUpdateChannels)",
+            "allowDeleteChannels": "$($form.AllowGuestDeleteChannels)"
+        },
+        "messagingSettings": {
+            "allowUserEditMessages": "$($form.AllowUserEditMessages)",
+            "allowUserDeleteMessages": "$($form.AllowUserDeleteMessages)",
+            "allowOwnerDeleteMessages": "$($form.AllowOwnerDeleteMessages)",
+            "allowTeamMentions": "$($form.AllowTeamMentions)",
+            "allowChannelMentions": "$($form.AllowChannelMentions)"
+        },
+        "funSettings": {
+            "allowGiphy": "$($form.AllowGiphy)",
+            "giphyContentRating": "$giphyContentRating",
+            "allowStickersAndMemes": "$($form.AllowStickersAndMemes)",
+            "allowCustomMemes": "$($form.AllowCustomMemes)"
+        }
+    }
+"@
+    
+    $updateteam = Invoke-RestMethod -Method PATCH -Uri $updateTeamUri -Body $teambody -Headers $authorization 
+
+    Write-Information "Successfully updated Team [$displayName] with id [$groupId]."
+        $Log = @{
+            Action            = "UpdateResource" # optional. ENUM (undefined = default) 
+            System            = "AzureActiveDirectory" # optional (free format text) 
+            Message           = "Successfully updated Team [$displayName] with id [$groupId]." # required (free format text) 
+            IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) 
+            TargetDisplayName = $displayName # optional (free format text)
+            TargetIdentifier  = $groupId # optional (free format text)
+        }
+        #send result back  
+        Write-Information -Tags "Audit" -MessageData $log
 }
 catch
 {	
-    Write-Error "Could not connect to Microsoft Teams. Error: $($_.Exception.Message)"
+    Write-Error "Failed to update Team [$displayName]. Error: $($_.Exception.Message)"
+    $Log = @{
+        Action            = "UpdateResource" # optional. ENUM (undefined = default) 
+        System            = "AzureActiveDirectory" # optional (free format text) 
+        Message           = "Failed to update team [$displayName] with id [$groupId]." # required (free format text) 
+        IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) 
+        TargetDisplayName = $displayName # optional (free format text)
+        TargetIdentifier  = $groupId # optional (free format text)
+    }
+    #send result back  
+    Write-Information -Tags "Audit" -MessageData $log
 }
 
-if ($connected)
-{
-	try {
-        $splatParams = @{
-            groupId                             =   $groupId
-            AllowAddRemoveApps                  =   $AllowAddRemoveApps
-            AllowChannelMentions                =   $AllowChannelMentions
-            AllowCreateUpdateChannels           =   $AllowCreateUpdateChannels 
-            AllowCreateUpdateRemoveConnectors   =   $AllowCreateUpdateRemoveConnectors 
-            AllowCreateUpdateRemoveTabs         =   $AllowCreateUpdateRemoveTabs 
-            AllowCustomMemes                    =   $AllowCustomMemes 
-            AllowDeleteChannels                 =   $AllowDeleteChannels 
-            AllowGiphy                          =   $AllowGiphy
-            AllowGuestCreateUpdateChannels      =   $AllowGuestCreateUpdateChannels
-            AllowGuestDeleteChannels            =   $AllowGuestDeleteChannels
-            AllowOwnerDeleteMessages            =   $AllowOwnerDeleteMessages
-            AllowStickersAndMemes               =   $AllowStickersAndMemes 
-            AllowTeamMentions                   =   $AllowTeamMentions 
-            AllowUserDeleteMessages             =   $AllowUserDeleteMessages 
-            AllowUserEditMessages               =   $AllowUserEditMessages 
-            ShowInTeamsSearchAndSuggestions     =   $ShowInTeamsSearchAndSuggestions
+try {
+	$updateBetaTeamUri = $baseGraphUri + "beta/teams/$groupId"
+
+    $teambetabody = 
+        @"
+    {
+        "discoverySettings": {
+            "showInTeamsSearchAndSuggestions" : "$($form.ShowInTeamsSearchAndSuggestions)"
         }
+    }
+"@
 
-        # Remove empty or null values
-        $splatParams = Remove-EmptyValuesFromHashtable $splatParams
+    $updatebetateam = Invoke-RestMethod -Method PATCH -Uri $updateBetaTeamUri -Body $teambetabody -Headers $authorization 
 
-		$updateTeam = Set-Team @splatParams
-		Write-Information "Successfully updated Team [$groupId]"
-	}
-	catch
-	{
-		Write-Error "Could not update Team [$groupId]. Error: $($_.Exception.Message)"
-	}
+    Write-Information "Successfully updated betasettings Team [$displayName] with id [$groupId]."
+        $Log = @{
+            Action            = "UpdateResource" # optional. ENUM (undefined = default) 
+            System            = "AzureActiveDirectory" # optional (free format text) 
+            Message           = "Successfully updated betasettings Team [$displayName] with id [$groupId]." # required (free format text) 
+            IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) 
+            TargetDisplayName = $displayName # optional (free format text)
+            TargetIdentifier  = $groupId # optional (free format text)
+        }
+        #send result back  
+        Write-Information -Tags "Audit" -MessageData $log
+}
+catch
+{	
+     Write-Error "Failed to update betasettings Team [$displayName]. Error: $($_.Exception.Message)"
+    $Log = @{
+        Action            = "UpdateResource" # optional. ENUM (undefined = default) 
+        System            = "AzureActiveDirectory" # optional (free format text) 
+        Message           = "Failed to update betasettings team [$displayName] with id [$groupId]." # required (free format text) 
+        IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) 
+        TargetDisplayName = $displayName # optional (free format text)
+        TargetIdentifier  = $groupId # optional (free format text)
+    }
+    #send result back  
+    Write-Information -Tags "Audit" -MessageData $log
 }

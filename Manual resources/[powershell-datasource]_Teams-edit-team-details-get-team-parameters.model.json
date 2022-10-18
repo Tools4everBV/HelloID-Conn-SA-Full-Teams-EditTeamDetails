@@ -1,0 +1,74 @@
+[
+    {
+        "key":  "mes_allowUserDeleteMessages",
+        "type":  0
+    },
+    {
+        "key":  "g_allowCreateUpdateChannels",
+        "type":  0
+    },
+    {
+        "key":  "f_giphyContentRating",
+        "type":  0
+    },
+    {
+        "key":  "m_allowCreateUpdateRemoveTabs",
+        "type":  0
+    },
+    {
+        "key":  "mes_allowOwnerDeleteMessages",
+        "type":  0
+    },
+    {
+        "key":  "f_allowGiphy",
+        "type":  0
+    },
+    {
+        "key":  "b_showInTeamsSearchAndSuggestions",
+        "type":  0
+    },
+    {
+        "key":  "f_allowCustomMemes",
+        "type":  0
+    },
+    {
+        "key":  "m_allowCreateUpdateChannels",
+        "type":  0
+    },
+    {
+        "key":  "mes_allowUserEditMessages",
+        "type":  0
+    },
+    {
+        "key":  "f_allowStickersAndMemes",
+        "type":  0
+    },
+    {
+        "key":  "m_allowDeleteChannels",
+        "type":  0
+    },
+    {
+        "key":  "g_allowDeleteChannels",
+        "type":  0
+    },
+    {
+        "key":  "m_allowCreateUpdateRemoveConnectors",
+        "type":  0
+    },
+    {
+        "key":  "m_allowCreatePrivateChannels",
+        "type":  0
+    },
+    {
+        "key":  "mes_allowTeamMentions",
+        "type":  0
+    },
+    {
+        "key":  "m_allowAddRemoveApps",
+        "type":  0
+    },
+    {
+        "key":  "mes_allowChannelMentions",
+        "type":  0
+    }
+]

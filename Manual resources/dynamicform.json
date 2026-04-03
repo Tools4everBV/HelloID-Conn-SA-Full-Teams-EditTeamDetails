@@ -63,7 +63,8 @@
                                                                                       }
                                                                         },
                                                    "useFilter":  true,
-                                                   "useDefault":  false
+                                                   "useDefault":  false,
+                                                   "allowCsvDownload":  true
                                                },
                            "type":  "grid",
                            "summaryVisibility":  "Show",

@@ -1,11 +1,11 @@
 #######################################################################
-# Template: HelloID SA Delegated form task
-# Name: Teams - Edit Team Details
+# Template: HelloID SA Powershell data source
+# Name: teams-edit-team-details | Get-Team-Parameters
 # Date: 03-04-2026
 #######################################################################
 
-# For basic information about delegated form tasks see:
-# https://docs.helloid.com/en/service-automation/delegated-forms/delegated-form-tasks.html
+# For basic information about powershell data sources see:
+# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources.html
 
 # Service automation variables:
 # https://docs.helloid.com/en/service-automation/service-automation-variables.html
@@ -16,7 +16,7 @@ $VerbosePreference = "SilentlyContinue"
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
-# global variables (Automation --> Variable libary):
+# global variables (Automation --> Variable library):
 # Outcommented as these are set from Global Variables
 # $EntraIdTenantId = ""
 # $EntraIdAppId = ""
@@ -24,8 +24,7 @@ $WarningPreference = "Continue"
 # $EntraIdCertificatePassword = ""
 
 # variables configured in form
-$groupId = $form.teams.GroupId
-$displayName = $form.teams.DisplayName
+$groupId = $datasource.selectedgroup.GroupId
 
 #endregion init
 
@@ -164,14 +163,6 @@ function Get-MSEntraCertificate {
 #endregion functions
 
 try {
-    if ($form.giphyContentRating -in @($true, "true", "Strict")) {
-        $giphyContentRating = "Strict"
-    }
-    else {
-        $giphyContentRating = "Moderate"
-    }
-
-    $actionMessage = "authenticating to Microsoft Graph"
     Write-Verbose 'connecting to MS-Entra'
     $certificate = Get-MSEntraCertificate
     $entraToken = Get-MSEntraAccessToken -Certificate $certificate
@@ -182,74 +173,39 @@ try {
         Accept         = "application/json"
     }
 
-    $actionMessage = "updating team settings for Team [$displayName] with ID [$groupId]"
-    $teamBody = @{
-        memberSettings    = @{
-            allowCreatePrivateChannels        = [bool]$form.AllowCreatePrivateChannels
-            allowCreateUpdateChannels         = [bool]$form.AllowCreateUpdateChannels
-            allowDeleteChannels               = [bool]$form.AllowDeleteChannels
-            allowAddRemoveApps                = [bool]$form.AllowAddRemoveApps
-            allowCreateUpdateRemoveTabs       = [bool]$form.AllowCreateUpdateRemoveTabs
-            allowCreateUpdateRemoveConnectors = [bool]$form.AllowCreateUpdateRemoveConnectors
-        }
-        guestSettings     = @{
-            allowCreateUpdateChannels = [bool]$form.AllowGuestCreateUpdateChannels
-            allowDeleteChannels       = [bool]$form.AllowGuestDeleteChannels
-        }
-        messagingSettings = @{
-            allowUserEditMessages    = [bool]$form.AllowUserEditMessages
-            allowUserDeleteMessages  = [bool]$form.AllowUserDeleteMessages
-            allowOwnerDeleteMessages = [bool]$form.AllowOwnerDeleteMessages
-            allowTeamMentions        = [bool]$form.AllowTeamMentions
-            allowChannelMentions     = [bool]$form.AllowChannelMentions
-        }
-        funSettings       = @{
-            allowGiphy            = [bool]$form.AllowGiphy
-            giphyContentRating    = $giphyContentRating
-            allowStickersAndMemes = [bool]$form.AllowStickersAndMemes
-            allowCustomMemes      = [bool]$form.AllowCustomMemes
-        }
-    }
+    $actionMessage = "getting Team settings details for Team ID [$groupId]"
+    Write-Information $actionMessage
 
-    $updateTeamSplatParams = @{
-        Uri         = "https://graph.microsoft.com/v1.0/teams/$groupId"
-        Body        = ($teamBody | ConvertTo-Json -Depth 10)
-        Headers     = $authorization
-        Method      = 'PATCH'
-        ContentType = 'application/json'
-        Verbose     = $false
-        ErrorAction = 'Stop'
-    }
-    $null = Invoke-RestMethod @updateTeamSplatParams
+    $teamsResponse = Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/teams/$groupId" -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
+    $teamsResponseBeta = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/teams/$groupId" -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
 
-    $actionMessage = "updating team beta discovery settings for Team [$displayName] with ID [$groupId]"
-    $teamBetaBody = @{
-        discoverySettings = @{
-            showInTeamsSearchAndSuggestions = [bool]$form.ShowInTeamsSearchAndSuggestions
-        }
-    }
+    $memberSettings = $teamsResponse.memberSettings
+    $messagingSettings = $teamsResponse.messagingSettings
+    $funSettings = $teamsResponse.funSettings
+    $guestSettings = $teamsResponse.guestSettings
+    $teamDiscoverySettings = $teamsResponseBeta.discoverySettings
 
-    $updateBetaTeamSplatParams = @{
-        Uri         = "https://graph.microsoft.com/beta/teams/$groupId"
-        Body        = ($teamBetaBody | ConvertTo-Json -Depth 10)
-        Headers     = $authorization
-        Method      = 'PATCH'
-        ContentType = 'application/json'
-        Verbose     = $false
-        ErrorAction = 'Stop'
+    $returnObject = @{
+        m_allowCreatePrivateChannels        = $memberSettings.allowCreatePrivateChannels
+        m_allowCreateUpdateChannels         = $memberSettings.allowCreateUpdateChannels
+        m_allowDeleteChannels               = $memberSettings.allowDeleteChannels
+        m_allowAddRemoveApps                = $memberSettings.allowAddRemoveApps
+        m_allowCreateUpdateRemoveTabs       = $memberSettings.allowCreateUpdateRemoveTabs
+        m_allowCreateUpdateRemoveConnectors = $memberSettings.allowCreateUpdateRemoveConnectors
+        g_allowCreateUpdateChannels         = $guestSettings.allowCreateUpdateChannels
+        g_allowDeleteChannels               = $guestSettings.allowDeleteChannels
+        mes_allowUserEditMessages           = $messagingSettings.allowUserEditMessages
+        mes_allowUserDeleteMessages         = $messagingSettings.allowUserDeleteMessages
+        mes_allowOwnerDeleteMessages        = $messagingSettings.allowOwnerDeleteMessages
+        mes_allowTeamMentions               = $messagingSettings.allowTeamMentions
+        mes_allowChannelMentions            = $messagingSettings.allowChannelMentions
+        f_allowGiphy                        = $funSettings.allowGiphy
+        f_giphyContentRating                = $funSettings.giphyContentRating
+        f_allowStickersAndMemes             = $funSettings.allowStickersAndMemes
+        f_allowCustomMemes                  = $funSettings.allowCustomMemes
+        b_showInTeamsSearchAndSuggestions   = $teamDiscoverySettings.showInTeamsSearchAndSuggestions
     }
-    $null = Invoke-RestMethod @updateBetaTeamSplatParams
-
-    Write-Information "Successfully updated Team [$displayName] with ID [$groupId]."
-    $Log = @{
-        Action            = "UpdateResource"
-        System            = "MicrosoftTeams"
-        Message           = "Successfully updated Team [$displayName] with ID [$groupId]."
-        IsError           = $false
-        TargetDisplayName = $displayName
-        TargetIdentifier  = $groupId
-    }
-    Write-Information -Tags "Audit" -MessageData $log
+    Write-Output $returnObject
 }
 catch {
     $ex = $PSItem
@@ -264,15 +220,6 @@ catch {
         $warningMessage = "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
     }
 
-    $Log = @{
-        Action            = "UpdateResource"
-        System            = "MicrosoftTeams"
-        Message           = $auditMessage
-        IsError           = $true
-        TargetDisplayName = $displayName
-        TargetIdentifier  = $groupId
-    }
-    Write-Information -Tags "Audit" -MessageData $log
     Write-Warning $warningMessage
     Write-Error $auditMessage
 }

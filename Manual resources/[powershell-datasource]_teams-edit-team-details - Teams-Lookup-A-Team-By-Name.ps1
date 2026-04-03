@@ -1,11 +1,11 @@
 #######################################################################
-# Template: HelloID SA Delegated form task
-# Name: Teams - Edit Team Details
+# Template: HelloID SA Powershell data source
+# Name: teams-edit-team-details | Teams-Lookup-A-Team-By-Name
 # Date: 03-04-2026
 #######################################################################
 
-# For basic information about delegated form tasks see:
-# https://docs.helloid.com/en/service-automation/delegated-forms/delegated-form-tasks.html
+# For basic information about powershell data sources see:
+# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources.html
 
 # Service automation variables:
 # https://docs.helloid.com/en/service-automation/service-automation-variables.html
@@ -16,16 +16,15 @@ $VerbosePreference = "SilentlyContinue"
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
-# global variables (Automation --> Variable libary):
+# global variables (Automation --> Variable library):
 # Outcommented as these are set from Global Variables
 # $EntraIdTenantId = ""
 # $EntraIdAppId = ""
 # $EntraIdCertificateBase64String = ""
 # $EntraIdCertificatePassword = ""
 
-# variables configured in form
-$groupId = $form.teams.GroupId
-$displayName = $form.teams.DisplayName
+# variables configured in form:
+$searchValue = $datasource.searchValue
 
 #endregion init
 
@@ -164,92 +163,48 @@ function Get-MSEntraCertificate {
 #endregion functions
 
 try {
-    if ($form.giphyContentRating -in @($true, "true", "Strict")) {
-        $giphyContentRating = "Strict"
-    }
-    else {
-        $giphyContentRating = "Moderate"
+    if ([string]::IsNullOrEmpty($searchValue)) {
+        return
     }
 
-    $actionMessage = "authenticating to Microsoft Graph"
     Write-Verbose 'connecting to MS-Entra'
     $certificate = Get-MSEntraCertificate
     $entraToken = Get-MSEntraAccessToken -Certificate $certificate
 
     $authorization = @{
-        Authorization  = "Bearer $entraToken"
-        'Content-Type' = "application/json"
-        Accept         = "application/json"
+        Authorization      = "Bearer $entraToken"
+        'Content-Type'     = "application/json"
+        Accept             = "application/json"
+        "ConsistencyLevel" = "eventual"
     }
 
-    $actionMessage = "updating team settings for Team [$displayName] with ID [$groupId]"
-    $teamBody = @{
-        memberSettings    = @{
-            allowCreatePrivateChannels        = [bool]$form.AllowCreatePrivateChannels
-            allowCreateUpdateChannels         = [bool]$form.AllowCreateUpdateChannels
-            allowDeleteChannels               = [bool]$form.AllowDeleteChannels
-            allowAddRemoveApps                = [bool]$form.AllowAddRemoveApps
-            allowCreateUpdateRemoveTabs       = [bool]$form.AllowCreateUpdateRemoveTabs
-            allowCreateUpdateRemoveConnectors = [bool]$form.AllowCreateUpdateRemoveConnectors
-        }
-        guestSettings     = @{
-            allowCreateUpdateChannels = [bool]$form.AllowGuestCreateUpdateChannels
-            allowDeleteChannels       = [bool]$form.AllowGuestDeleteChannels
-        }
-        messagingSettings = @{
-            allowUserEditMessages    = [bool]$form.AllowUserEditMessages
-            allowUserDeleteMessages  = [bool]$form.AllowUserDeleteMessages
-            allowOwnerDeleteMessages = [bool]$form.AllowOwnerDeleteMessages
-            allowTeamMentions        = [bool]$form.AllowTeamMentions
-            allowChannelMentions     = [bool]$form.AllowChannelMentions
-        }
-        funSettings       = @{
-            allowGiphy            = [bool]$form.AllowGiphy
-            giphyContentRating    = $giphyContentRating
-            allowStickersAndMemes = [bool]$form.AllowStickersAndMemes
-            allowCustomMemes      = [bool]$form.AllowCustomMemes
-        }
+    $searchQuery = '"displayName:{0}" OR "mailNickname:{0}"' -f $searchValue
+    $actionMessage = "searching for Teams-enabled EntraID groups with query: $searchQuery"
+    Write-Information $actionMessage
+
+    $searchUri = "https://graph.microsoft.com/v1.0/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&`$search=$searchQuery&`$top=999"
+    $teamsResponse = Invoke-RestMethod -Uri $searchUri -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
+    $teams = @($teamsResponse.value)
+
+    while (-not [string]::IsNullOrEmpty($teamsResponse.'@odata.nextLink')) {
+        $teamsResponse = Invoke-RestMethod -Uri $teamsResponse.'@odata.nextLink' -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
+        $teams += $teamsResponse.value
     }
 
-    $updateTeamSplatParams = @{
-        Uri         = "https://graph.microsoft.com/v1.0/teams/$groupId"
-        Body        = ($teamBody | ConvertTo-Json -Depth 10)
-        Headers     = $authorization
-        Method      = 'PATCH'
-        ContentType = 'application/json'
-        Verbose     = $false
-        ErrorAction = 'Stop'
-    }
-    $null = Invoke-RestMethod @updateTeamSplatParams
+    $teams = $teams | Sort-Object -Property DisplayName
+    Write-Information -Message "Result count: $(@($teams).Count)"
 
-    $actionMessage = "updating team beta discovery settings for Team [$displayName] with ID [$groupId]"
-    $teamBetaBody = @{
-        discoverySettings = @{
-            showInTeamsSearchAndSuggestions = [bool]$form.ShowInTeamsSearchAndSuggestions
+    foreach ($team in $teams) {
+        $returnObject = @{
+            DisplayName  = $team.DisplayName
+            Description  = $team.Description
+            MailNickName = $team.MailNickName
+            Mailaddress  = $team.Mail
+            Visibility   = $team.Visibility
+            GroupId      = $team.Id
         }
+        Write-Output $returnObject
     }
-
-    $updateBetaTeamSplatParams = @{
-        Uri         = "https://graph.microsoft.com/beta/teams/$groupId"
-        Body        = ($teamBetaBody | ConvertTo-Json -Depth 10)
-        Headers     = $authorization
-        Method      = 'PATCH'
-        ContentType = 'application/json'
-        Verbose     = $false
-        ErrorAction = 'Stop'
-    }
-    $null = Invoke-RestMethod @updateBetaTeamSplatParams
-
-    Write-Information "Successfully updated Team [$displayName] with ID [$groupId]."
-    $Log = @{
-        Action            = "UpdateResource"
-        System            = "MicrosoftTeams"
-        Message           = "Successfully updated Team [$displayName] with ID [$groupId]."
-        IsError           = $false
-        TargetDisplayName = $displayName
-        TargetIdentifier  = $groupId
-    }
-    Write-Information -Tags "Audit" -MessageData $log
 }
 catch {
     $ex = $PSItem
@@ -264,15 +219,6 @@ catch {
         $warningMessage = "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
     }
 
-    $Log = @{
-        Action            = "UpdateResource"
-        System            = "MicrosoftTeams"
-        Message           = $auditMessage
-        IsError           = $true
-        TargetDisplayName = $displayName
-        TargetIdentifier  = $groupId
-    }
-    Write-Information -Tags "Audit" -MessageData $log
     Write-Warning $warningMessage
     Write-Error $auditMessage
 }

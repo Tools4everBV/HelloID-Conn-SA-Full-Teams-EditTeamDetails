@@ -34,15 +34,17 @@ $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue
 $tmpName = @'
 EntraIdTenantId
 '@ 
-$tmpValue = "" 
-$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "True"});
+$tmpValue = @'
+'@ 
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
 
 #Global variable #4 >> EntraIdAppId
 $tmpName = @'
 EntraIdAppId
 '@ 
-$tmpValue = "" 
-$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "True"});
+$tmpValue = @'
+'@ 
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
 
 
 #make sure write-information logging is visual
@@ -525,11 +527,16 @@ try {
         "ConsistencyLevel" = "eventual"
     }
 
-    $searchQuery = '"displayName:{0}" OR "mailNickname:{0}"' -f $searchValue
+    if ($searchValue -eq '*') {
+        $searchQuery = ''
+    }
+    else {
+        $searchQuery = '&$search="displayName:{0}" OR "mailNickname:{0}"' -f $searchValue
+    }
     $actionMessage = "searching for Teams-enabled EntraID groups with query: $searchQuery"
     Write-Information $actionMessage
 
-    $searchUri = "https://graph.microsoft.com/v1.0/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&`$search=$searchQuery&`$top=999"
+    $searchUri = "https://graph.microsoft.com/v1.0/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')$searchQuery&`$top=999"
     $teamsResponse = Invoke-RestMethod -Uri $searchUri -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
     $teams = @($teamsResponse.value)
 
@@ -570,9 +577,10 @@ catch {
     Write-Error $auditMessage
 }
 
+
 '@ 
 $tmpModel = @'
-[{"key":"Visibility","type":0},{"key":"GroupId","type":0},{"key":"Mailaddress","type":0},{"key":"MailNickName","type":0},{"key":"DisplayName","type":0},{"key":"Description","type":0}]
+[{"key":"GroupId","type":0},{"key":"Description","type":0},{"key":"DisplayName","type":0},{"key":"Mailaddress","type":0},{"key":"Visibility","type":0},{"key":"MailNickName","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":null,"translateDescription":false,"inputFieldType":1,"key":"searchValue","type":0,"options":1}]

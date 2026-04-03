@@ -178,11 +178,16 @@ try {
         "ConsistencyLevel" = "eventual"
     }
 
-    $searchQuery = '"displayName:{0}" OR "mailNickname:{0}"' -f $searchValue
+    if ($searchValue -eq '*') {
+        $searchQuery = ''
+    }
+    else {
+        $searchQuery = '&$search="displayName:{0}" OR "mailNickname:{0}"' -f $searchValue
+    }
     $actionMessage = "searching for Teams-enabled EntraID groups with query: $searchQuery"
     Write-Information $actionMessage
 
-    $searchUri = "https://graph.microsoft.com/v1.0/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&`$search=$searchQuery&`$top=999"
+    $searchUri = "https://graph.microsoft.com/v1.0/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')$searchQuery&`$top=999"
     $teamsResponse = Invoke-RestMethod -Uri $searchUri -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
     $teams = @($teamsResponse.value)
 
@@ -222,4 +227,5 @@ catch {
     Write-Warning $warningMessage
     Write-Error $auditMessage
 }
+
 

@@ -9,8 +9,11 @@ _HelloID-Conn-SA-Full-Teams-EditTeamDetails_ is a template designed for use with
 
 By using this delegated form, you can update Team settings in Microsoft Teams through Microsoft Graph. The delegated form supports the following flow:
 1. Search for and select an existing Microsoft Team
-2. Retrieve current Team settings into the form
-3. Update member, guest, messaging, and fun settings
+2. Retrieve Team metadata and Team settings into the form
+3. Optionally update Team display name, description, and privacy
+4. Add and/or remove Team owners by moving users between source and destination lists
+5. Validate Team naming uniqueness before submit
+6. Update Team metadata and Team settings
 
 ## Getting started
 ### Requirements
@@ -20,7 +23,9 @@ By using this delegated form, you can update Team settings in Microsoft Teams th
 - **Microsoft Graph application permissions**:
   Configure and grant admin consent for the following minimal application permissions:
   - `GroupMember.Read.All`
+  - `Group.ReadWrite.All`
   - `TeamSettings.ReadWrite.Group`
+  - `User.Read.All`
 
 ### Connection settings
 
@@ -32,6 +37,7 @@ The following user-defined variables are used by the connector.
 | EntraIdAppId                   | Application (client) ID of the app registration                            | Yes       |
 | EntraIdCertificateBase64String | Base64 encoded certificate (including private key) used for authentication | Yes       |
 | EntraIdCertificatePassword     | Password for the certificate                                               | Yes       |
+| TeamsMailsuffix                | Mail suffix used when building mail address from display name              | Yes       |
 
 ## Remarks
 
@@ -40,6 +46,15 @@ The following user-defined variables are used by the connector.
 
 ### Team settings behavior
 - Team core settings are updated through `v1.0/teams/{teamId}`.
+
+### Team metadata and owner behavior
+- Team metadata is updated through `v1.0/groups/{groupId}`.
+- Team owners are synchronized through `v1.0/groups/{groupId}/owners/$ref` for add and remove operations.
+- Privacy options are loaded dynamically and include `Public` and `Private`. `HiddenMembership` is only shown when the selected Team already uses this visibility.
+
+### Validation behavior
+- The form validates whether display name, mail, and mail nickname are unique before submit.
+- Validation excludes the currently selected Team from uniqueness checks.
 
 ## Development resources
 
@@ -51,14 +66,22 @@ The following endpoints are used by the connector.
 |-------------------------------------------------------------|-------------------------------------------------------------------------|
 | `https://login.microsoftonline.com/{tenantId}/oauth2/token` | Retrieve OAuth2 access token using certificate-based client credentials |
 | `https://graph.microsoft.com/v1.0/groups`                   | Search Teams-enabled groups                                             |
-| `https://graph.microsoft.com/v1.0/teams/{teamId}`           | Retrieve and update team settings                                       |
+| `https://graph.microsoft.com/v1.0/groups/{groupId}`         | Update Team metadata (display name, description, visibility)            |
+| `https://graph.microsoft.com/v1.0/groups/{groupId}/owners`  | Read Team owners                                                        |
+| `https://graph.microsoft.com/v1.0/groups/{groupId}/owners/$ref` | Add and remove Team owners                                          |
+| `https://graph.microsoft.com/v1.0/users`                    | Retrieve selectable Entra ID users for owner selection                  |
+| `https://graph.microsoft.com/v1.0/teams/{teamId}`           | Retrieve and update Team settings                                       |
 
 ### API documentation
 
 - https://learn.microsoft.com/graph/api/overview
 - https://learn.microsoft.com/graph/api/group-list
+- https://learn.microsoft.com/graph/api/group-update
+- https://learn.microsoft.com/graph/api/group-post-owners
+- https://learn.microsoft.com/graph/api/group-delete-owners
 - https://learn.microsoft.com/graph/api/team-get
 - https://learn.microsoft.com/graph/api/team-update
+- https://learn.microsoft.com/graph/api/user-list
 
 ## Getting help
 > :bulb: **Tip:**  

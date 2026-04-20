@@ -1,6 +1,6 @@
 [
     {
-        "key":  "mes_allowUserDeleteMessages",
+        "key":  "m_allowCreateUpdateChannels",
         "type":  0
     },
     {
@@ -8,15 +8,7 @@
         "type":  0
     },
     {
-        "key":  "f_giphyContentRating",
-        "type":  0
-    },
-    {
-        "key":  "m_allowCreateUpdateRemoveTabs",
-        "type":  0
-    },
-    {
-        "key":  "mes_allowOwnerDeleteMessages",
+        "key":  "f_allowCustomMemes",
         "type":  0
     },
     {
@@ -24,27 +16,15 @@
         "type":  0
     },
     {
-        "key":  "f_allowCustomMemes",
+        "key":  "mes_allowUserDeleteMessages",
         "type":  0
     },
     {
-        "key":  "m_allowCreateUpdateChannels",
+        "key":  "f_giphyContentRating",
         "type":  0
     },
     {
-        "key":  "mes_allowUserEditMessages",
-        "type":  0
-    },
-    {
-        "key":  "f_allowStickersAndMemes",
-        "type":  0
-    },
-    {
-        "key":  "m_allowDeleteChannels",
-        "type":  0
-    },
-    {
-        "key":  "g_allowDeleteChannels",
+        "key":  "mes_allowChannelMentions",
         "type":  0
     },
     {
@@ -52,7 +32,7 @@
         "type":  0
     },
     {
-        "key":  "m_allowCreatePrivateChannels",
+        "key":  "mes_allowOwnerDeleteMessages",
         "type":  0
     },
     {
@@ -60,11 +40,31 @@
         "type":  0
     },
     {
+        "key":  "m_allowDeleteChannels",
+        "type":  0
+    },
+    {
+        "key":  "m_allowCreatePrivateChannels",
+        "type":  0
+    },
+    {
+        "key":  "g_allowDeleteChannels",
+        "type":  0
+    },
+    {
         "key":  "m_allowAddRemoveApps",
         "type":  0
     },
     {
-        "key":  "mes_allowChannelMentions",
+        "key":  "mes_allowUserEditMessages",
+        "type":  0
+    },
+    {
+        "key":  "m_allowCreateUpdateRemoveTabs",
+        "type":  0
+    },
+    {
+        "key":  "f_allowStickersAndMemes",
         "type":  0
     }
 ]

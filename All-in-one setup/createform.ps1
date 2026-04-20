@@ -44,6 +44,24 @@ EntraIdAppId
 $tmpValue = "" 
 $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "True"});
 
+#Global variable #5 >> companyName
+$tmpName = @'
+companyName
+'@ 
+$tmpValue = @'
+{{company.name}}
+'@ 
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
+
+#Global variable #6 >> TeamsMailsuffix
+$tmpName = @'
+TeamsMailsuffix
+'@ 
+$tmpValue = @'
+tools4ever.com
+'@ 
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
+
 
 #make sure write-information logging is visual
 $InformationPreference = "continue"
@@ -815,10 +833,726 @@ catch {
     Write-Error $auditMessage
 }
 
+'@ 
+$tmpModel = @'
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_18 = [PSCustomObject]@{} 
+$dataSourceGuid_18_Name = @'
+teams-edit-team-details | Get-Team-Parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_18_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "True" -returnObject ([Ref]$dataSourceGuid_18) 
+<# End: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+
+<# Begin: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+$tmpPsScript = @'
+#######################################################################
+# Template: HelloID SA Powershell data source
+# Name: teams-edit-team-details | Get-Team-Parameters
+# Date: 03-04-2026
+#######################################################################
+
+# For basic information about powershell data sources see:
+# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources.html
+
+# Service automation variables:
+# https://docs.helloid.com/en/service-automation/service-automation-variables.html
+
+#region init
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# global variables (Automation --> Variable library):
+# Outcommented as these are set from Global Variables
+# $EntraIdTenantId = ""
+# $EntraIdAppId = ""
+# $EntraIdCertificateBase64String = ""
+# $EntraIdCertificatePassword = ""
+
+# variables configured in form
+$groupId = $datasource.selectedgroup.GroupId
+
+#endregion init
+
+#region functions
+function Resolve-MicrosoftGraphAPIError {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [object]
+        $ErrorObject
+    )
+    process {
+        $httpErrorObj = [PSCustomObject]@{
+            ScriptLineNumber = $ErrorObject.InvocationInfo.ScriptLineNumber
+            Line             = $ErrorObject.InvocationInfo.Line
+            ErrorDetails     = $ErrorObject.Exception.Message
+            FriendlyMessage  = $ErrorObject.Exception.Message
+        }
+        if (-not [string]::IsNullOrEmpty($ErrorObject.ErrorDetails.Message)) {
+            $httpErrorObj.ErrorDetails = $ErrorObject.ErrorDetails.Message
+        }
+        elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {
+            if ($null -ne $ErrorObject.Exception.Response) {
+                $streamReaderResponse = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()
+                if (-not [string]::IsNullOrEmpty($streamReaderResponse)) {
+                    $httpErrorObj.ErrorDetails = $streamReaderResponse
+                }
+            }
+        }
+        try {
+            $errorDetailsObject = ($httpErrorObj.ErrorDetails | ConvertFrom-Json -ErrorAction Stop)
+            if ($errorDetailsObject.error_description) {
+                $httpErrorObj.FriendlyMessage = $errorDetailsObject.error_description
+            }
+            elseif ($errorDetailsObject.error.message) {
+                $httpErrorObj.FriendlyMessage = "$($errorDetailsObject.error.code): $($errorDetailsObject.error.message)"
+            }
+            elseif ($errorDetailsObject.error.details.message) {
+                $httpErrorObj.FriendlyMessage = "$($errorDetailsObject.error.details.code): $($errorDetailsObject.error.details.message)"
+            }
+            else {
+                $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails
+            }
+        }
+        catch {
+            $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails
+        }
+        Write-Output $httpErrorObj
+    }
+}
+
+function Get-MSEntraAccessToken {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        $Certificate
+    )
+    try {
+        $derBytes = $Certificate.RawData
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        $hashBytes = $sha256.ComputeHash($derBytes)
+        $base64Thumbprint = [System.Convert]::ToBase64String($hashBytes).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        $header = @{
+            'alg'      = 'RS256'
+            'typ'      = 'JWT'
+            'x5t#S256' = $base64Thumbprint
+        } | ConvertTo-Json
+        $base64Header = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($header))
+
+        $currentUnixTimestamp = [math]::Round(((Get-Date).ToUniversalTime() - ([datetime]'1970-01-01T00:00:00Z').ToUniversalTime()).TotalSeconds)
+
+        $payload = [Ordered]@{
+            'iss' = "$entraidappid"
+            'sub' = "$entraidappid"
+            'aud' = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
+            'exp' = ($currentUnixTimestamp + 3600)
+            'nbf' = ($currentUnixTimestamp - 300)
+            'iat' = $currentUnixTimestamp
+            'jti' = [Guid]::NewGuid().ToString()
+        } | ConvertTo-Json
+        $base64Payload = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payload)).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        $rsaPrivate = $Certificate.PrivateKey
+        $rsa = [System.Security.Cryptography.RSACryptoServiceProvider]::new()
+        $rsa.ImportParameters($rsaPrivate.ExportParameters($true))
+
+        $signatureInput = "$base64Header.$base64Payload"
+        $signature = $rsa.SignData([Text.Encoding]::UTF8.GetBytes($signatureInput), 'SHA256')
+        $base64Signature = [System.Convert]::ToBase64String($signature).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        if (-not $Certificate.HasPrivateKey -or -not $Certificate.PrivateKey) {
+            throw "The certificate does not have a private key."
+        }
+
+        $jwtToken = "$($base64Header).$($base64Payload).$($base64Signature)"
+
+        $createEntraAccessTokenBody = @{
+            grant_type            = 'client_credentials'
+            client_id             = $entraidappid
+            client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+            client_assertion      = $jwtToken
+            resource              = 'https://graph.microsoft.com'
+        }
+
+        $createEntraAccessTokenSplatParams = @{
+            Uri         = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
+            Body        = $createEntraAccessTokenBody
+            Method      = 'POST'
+            ContentType = 'application/x-www-form-urlencoded'
+            Verbose     = $false
+            ErrorAction = 'Stop'
+        }
+
+        $createEntraAccessTokenResponse = Invoke-RestMethod @createEntraAccessTokenSplatParams
+        Write-Output $createEntraAccessTokenResponse.access_token
+    }
+    catch {
+        $PSCmdlet.ThrowTerminatingError($_)
+    }
+}
+
+function Get-MSEntraCertificate {
+    [CmdletBinding()]
+    param()
+    try {
+        $rawCertificate = [system.convert]::FromBase64String($EntraIdCertificateBase64String)
+        $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($rawCertificate, $EntraIdCertificatePassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)
+        Write-Output $certificate
+    }
+    catch {
+        $PSCmdlet.ThrowTerminatingError($_)
+    }
+}
+
+#endregion functions
+
+try {
+    Write-Verbose 'connecting to MS-Entra'
+    $certificate = Get-MSEntraCertificate
+    $entraToken = Get-MSEntraAccessToken -Certificate $certificate
+
+    $authorization = @{
+        Authorization  = "Bearer $entraToken"
+        'Content-Type' = "application/json"
+        Accept         = "application/json"
+    }
+
+    $actionMessage = "getting Team settings details for Team ID [$groupId]"
+    Write-Information $actionMessage
+
+    $teamsResponse = Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/teams/$groupId" -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
+
+    $memberSettings = $teamsResponse.memberSettings
+    $messagingSettings = $teamsResponse.messagingSettings
+    $funSettings = $teamsResponse.funSettings
+    $guestSettings = $teamsResponse.guestSettings
+
+    $returnObject = @{
+        m_allowCreatePrivateChannels        = $memberSettings.allowCreatePrivateChannels
+        m_allowCreateUpdateChannels         = $memberSettings.allowCreateUpdateChannels
+        m_allowDeleteChannels               = $memberSettings.allowDeleteChannels
+        m_allowAddRemoveApps                = $memberSettings.allowAddRemoveApps
+        m_allowCreateUpdateRemoveTabs       = $memberSettings.allowCreateUpdateRemoveTabs
+        m_allowCreateUpdateRemoveConnectors = $memberSettings.allowCreateUpdateRemoveConnectors
+        g_allowCreateUpdateChannels         = $guestSettings.allowCreateUpdateChannels
+        g_allowDeleteChannels               = $guestSettings.allowDeleteChannels
+        mes_allowUserEditMessages           = $messagingSettings.allowUserEditMessages
+        mes_allowUserDeleteMessages         = $messagingSettings.allowUserDeleteMessages
+        mes_allowOwnerDeleteMessages        = $messagingSettings.allowOwnerDeleteMessages
+        mes_allowTeamMentions               = $messagingSettings.allowTeamMentions
+        mes_allowChannelMentions            = $messagingSettings.allowChannelMentions
+        f_allowGiphy                        = $funSettings.allowGiphy
+        f_giphyContentRating                = if ($funSettings.giphyContentRating -eq 'strict') { $true } else { $false }
+        f_allowStickersAndMemes             = $funSettings.allowStickersAndMemes
+        f_allowCustomMemes                  = $funSettings.allowCustomMemes
+    }
+    Write-Output $returnObject
+}
+catch {
+    $ex = $PSItem
+    if ($($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or
+        $($ex.Exception.GetType().FullName -eq 'System.Net.WebException')) {
+        $errorObj = Resolve-MicrosoftGraphAPIError -ErrorObject $ex
+        $auditMessage = "Error $($actionMessage). Error: $($errorObj.FriendlyMessage)"
+        $warningMessage = "Error at Line [$($errorObj.ScriptLineNumber)]: $($errorObj.Line). Error: $($errorObj.ErrorDetails)"
+    }
+    else {
+        $auditMessage = "Error $($actionMessage). Error: $($ex.Exception.Message)"
+        $warningMessage = "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
+    }
+
+    Write-Warning $warningMessage
+    Write-Error $auditMessage
+}
 
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_20 = [PSCustomObject]@{} 
+$dataSourceGuid_20_Name = @'
+teams-edit-team-details | Get-Team-Parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_20_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "True" -returnObject ([Ref]$dataSourceGuid_20) 
+<# End: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+
+<# Begin: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+$tmpPsScript = @'
+#######################################################################
+# Template: HelloID SA Powershell data source
+# Name: teams-edit-team-details | Get-Team-Parameters
+# Date: 03-04-2026
+#######################################################################
+
+# For basic information about powershell data sources see:
+# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources.html
+
+# Service automation variables:
+# https://docs.helloid.com/en/service-automation/service-automation-variables.html
+
+#region init
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# global variables (Automation --> Variable library):
+# Outcommented as these are set from Global Variables
+# $EntraIdTenantId = ""
+# $EntraIdAppId = ""
+# $EntraIdCertificateBase64String = ""
+# $EntraIdCertificatePassword = ""
+
+# variables configured in form
+$groupId = $datasource.selectedgroup.GroupId
+
+#endregion init
+
+#region functions
+function Resolve-MicrosoftGraphAPIError {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [object]
+        $ErrorObject
+    )
+    process {
+        $httpErrorObj = [PSCustomObject]@{
+            ScriptLineNumber = $ErrorObject.InvocationInfo.ScriptLineNumber
+            Line             = $ErrorObject.InvocationInfo.Line
+            ErrorDetails     = $ErrorObject.Exception.Message
+            FriendlyMessage  = $ErrorObject.Exception.Message
+        }
+        if (-not [string]::IsNullOrEmpty($ErrorObject.ErrorDetails.Message)) {
+            $httpErrorObj.ErrorDetails = $ErrorObject.ErrorDetails.Message
+        }
+        elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {
+            if ($null -ne $ErrorObject.Exception.Response) {
+                $streamReaderResponse = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()
+                if (-not [string]::IsNullOrEmpty($streamReaderResponse)) {
+                    $httpErrorObj.ErrorDetails = $streamReaderResponse
+                }
+            }
+        }
+        try {
+            $errorDetailsObject = ($httpErrorObj.ErrorDetails | ConvertFrom-Json -ErrorAction Stop)
+            if ($errorDetailsObject.error_description) {
+                $httpErrorObj.FriendlyMessage = $errorDetailsObject.error_description
+            }
+            elseif ($errorDetailsObject.error.message) {
+                $httpErrorObj.FriendlyMessage = "$($errorDetailsObject.error.code): $($errorDetailsObject.error.message)"
+            }
+            elseif ($errorDetailsObject.error.details.message) {
+                $httpErrorObj.FriendlyMessage = "$($errorDetailsObject.error.details.code): $($errorDetailsObject.error.details.message)"
+            }
+            else {
+                $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails
+            }
+        }
+        catch {
+            $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails
+        }
+        Write-Output $httpErrorObj
+    }
+}
+
+function Get-MSEntraAccessToken {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        $Certificate
+    )
+    try {
+        $derBytes = $Certificate.RawData
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        $hashBytes = $sha256.ComputeHash($derBytes)
+        $base64Thumbprint = [System.Convert]::ToBase64String($hashBytes).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        $header = @{
+            'alg'      = 'RS256'
+            'typ'      = 'JWT'
+            'x5t#S256' = $base64Thumbprint
+        } | ConvertTo-Json
+        $base64Header = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($header))
+
+        $currentUnixTimestamp = [math]::Round(((Get-Date).ToUniversalTime() - ([datetime]'1970-01-01T00:00:00Z').ToUniversalTime()).TotalSeconds)
+
+        $payload = [Ordered]@{
+            'iss' = "$entraidappid"
+            'sub' = "$entraidappid"
+            'aud' = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
+            'exp' = ($currentUnixTimestamp + 3600)
+            'nbf' = ($currentUnixTimestamp - 300)
+            'iat' = $currentUnixTimestamp
+            'jti' = [Guid]::NewGuid().ToString()
+        } | ConvertTo-Json
+        $base64Payload = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payload)).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        $rsaPrivate = $Certificate.PrivateKey
+        $rsa = [System.Security.Cryptography.RSACryptoServiceProvider]::new()
+        $rsa.ImportParameters($rsaPrivate.ExportParameters($true))
+
+        $signatureInput = "$base64Header.$base64Payload"
+        $signature = $rsa.SignData([Text.Encoding]::UTF8.GetBytes($signatureInput), 'SHA256')
+        $base64Signature = [System.Convert]::ToBase64String($signature).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        if (-not $Certificate.HasPrivateKey -or -not $Certificate.PrivateKey) {
+            throw "The certificate does not have a private key."
+        }
+
+        $jwtToken = "$($base64Header).$($base64Payload).$($base64Signature)"
+
+        $createEntraAccessTokenBody = @{
+            grant_type            = 'client_credentials'
+            client_id             = $entraidappid
+            client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+            client_assertion      = $jwtToken
+            resource              = 'https://graph.microsoft.com'
+        }
+
+        $createEntraAccessTokenSplatParams = @{
+            Uri         = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
+            Body        = $createEntraAccessTokenBody
+            Method      = 'POST'
+            ContentType = 'application/x-www-form-urlencoded'
+            Verbose     = $false
+            ErrorAction = 'Stop'
+        }
+
+        $createEntraAccessTokenResponse = Invoke-RestMethod @createEntraAccessTokenSplatParams
+        Write-Output $createEntraAccessTokenResponse.access_token
+    }
+    catch {
+        $PSCmdlet.ThrowTerminatingError($_)
+    }
+}
+
+function Get-MSEntraCertificate {
+    [CmdletBinding()]
+    param()
+    try {
+        $rawCertificate = [system.convert]::FromBase64String($EntraIdCertificateBase64String)
+        $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($rawCertificate, $EntraIdCertificatePassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)
+        Write-Output $certificate
+    }
+    catch {
+        $PSCmdlet.ThrowTerminatingError($_)
+    }
+}
+
+#endregion functions
+
+try {
+    Write-Verbose 'connecting to MS-Entra'
+    $certificate = Get-MSEntraCertificate
+    $entraToken = Get-MSEntraAccessToken -Certificate $certificate
+
+    $authorization = @{
+        Authorization  = "Bearer $entraToken"
+        'Content-Type' = "application/json"
+        Accept         = "application/json"
+    }
+
+    $actionMessage = "getting Team settings details for Team ID [$groupId]"
+    Write-Information $actionMessage
+
+    $teamsResponse = Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/teams/$groupId" -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
+
+    $memberSettings = $teamsResponse.memberSettings
+    $messagingSettings = $teamsResponse.messagingSettings
+    $funSettings = $teamsResponse.funSettings
+    $guestSettings = $teamsResponse.guestSettings
+
+    $returnObject = @{
+        m_allowCreatePrivateChannels        = $memberSettings.allowCreatePrivateChannels
+        m_allowCreateUpdateChannels         = $memberSettings.allowCreateUpdateChannels
+        m_allowDeleteChannels               = $memberSettings.allowDeleteChannels
+        m_allowAddRemoveApps                = $memberSettings.allowAddRemoveApps
+        m_allowCreateUpdateRemoveTabs       = $memberSettings.allowCreateUpdateRemoveTabs
+        m_allowCreateUpdateRemoveConnectors = $memberSettings.allowCreateUpdateRemoveConnectors
+        g_allowCreateUpdateChannels         = $guestSettings.allowCreateUpdateChannels
+        g_allowDeleteChannels               = $guestSettings.allowDeleteChannels
+        mes_allowUserEditMessages           = $messagingSettings.allowUserEditMessages
+        mes_allowUserDeleteMessages         = $messagingSettings.allowUserDeleteMessages
+        mes_allowOwnerDeleteMessages        = $messagingSettings.allowOwnerDeleteMessages
+        mes_allowTeamMentions               = $messagingSettings.allowTeamMentions
+        mes_allowChannelMentions            = $messagingSettings.allowChannelMentions
+        f_allowGiphy                        = $funSettings.allowGiphy
+        f_giphyContentRating                = if ($funSettings.giphyContentRating -eq 'strict') { $true } else { $false }
+        f_allowStickersAndMemes             = $funSettings.allowStickersAndMemes
+        f_allowCustomMemes                  = $funSettings.allowCustomMemes
+    }
+    Write-Output $returnObject
+}
+catch {
+    $ex = $PSItem
+    if ($($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or
+        $($ex.Exception.GetType().FullName -eq 'System.Net.WebException')) {
+        $errorObj = Resolve-MicrosoftGraphAPIError -ErrorObject $ex
+        $auditMessage = "Error $($actionMessage). Error: $($errorObj.FriendlyMessage)"
+        $warningMessage = "Error at Line [$($errorObj.ScriptLineNumber)]: $($errorObj.Line). Error: $($errorObj.ErrorDetails)"
+    }
+    else {
+        $auditMessage = "Error $($actionMessage). Error: $($ex.Exception.Message)"
+        $warningMessage = "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
+    }
+
+    Write-Warning $warningMessage
+    Write-Error $auditMessage
+}
+
+'@ 
+$tmpModel = @'
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_21 = [PSCustomObject]@{} 
+$dataSourceGuid_21_Name = @'
+teams-edit-team-details | Get-Team-Parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_21_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "True" -returnObject ([Ref]$dataSourceGuid_21) 
+<# End: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+
+<# Begin: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+$tmpPsScript = @'
+#######################################################################
+# Template: HelloID SA Powershell data source
+# Name: teams-edit-team-details | Get-Team-Parameters
+# Date: 03-04-2026
+#######################################################################
+
+# For basic information about powershell data sources see:
+# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources.html
+
+# Service automation variables:
+# https://docs.helloid.com/en/service-automation/service-automation-variables.html
+
+#region init
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# global variables (Automation --> Variable library):
+# Outcommented as these are set from Global Variables
+# $EntraIdTenantId = ""
+# $EntraIdAppId = ""
+# $EntraIdCertificateBase64String = ""
+# $EntraIdCertificatePassword = ""
+
+# variables configured in form
+$groupId = $datasource.selectedgroup.GroupId
+
+#endregion init
+
+#region functions
+function Resolve-MicrosoftGraphAPIError {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [object]
+        $ErrorObject
+    )
+    process {
+        $httpErrorObj = [PSCustomObject]@{
+            ScriptLineNumber = $ErrorObject.InvocationInfo.ScriptLineNumber
+            Line             = $ErrorObject.InvocationInfo.Line
+            ErrorDetails     = $ErrorObject.Exception.Message
+            FriendlyMessage  = $ErrorObject.Exception.Message
+        }
+        if (-not [string]::IsNullOrEmpty($ErrorObject.ErrorDetails.Message)) {
+            $httpErrorObj.ErrorDetails = $ErrorObject.ErrorDetails.Message
+        }
+        elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {
+            if ($null -ne $ErrorObject.Exception.Response) {
+                $streamReaderResponse = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()
+                if (-not [string]::IsNullOrEmpty($streamReaderResponse)) {
+                    $httpErrorObj.ErrorDetails = $streamReaderResponse
+                }
+            }
+        }
+        try {
+            $errorDetailsObject = ($httpErrorObj.ErrorDetails | ConvertFrom-Json -ErrorAction Stop)
+            if ($errorDetailsObject.error_description) {
+                $httpErrorObj.FriendlyMessage = $errorDetailsObject.error_description
+            }
+            elseif ($errorDetailsObject.error.message) {
+                $httpErrorObj.FriendlyMessage = "$($errorDetailsObject.error.code): $($errorDetailsObject.error.message)"
+            }
+            elseif ($errorDetailsObject.error.details.message) {
+                $httpErrorObj.FriendlyMessage = "$($errorDetailsObject.error.details.code): $($errorDetailsObject.error.details.message)"
+            }
+            else {
+                $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails
+            }
+        }
+        catch {
+            $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails
+        }
+        Write-Output $httpErrorObj
+    }
+}
+
+function Get-MSEntraAccessToken {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        $Certificate
+    )
+    try {
+        $derBytes = $Certificate.RawData
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        $hashBytes = $sha256.ComputeHash($derBytes)
+        $base64Thumbprint = [System.Convert]::ToBase64String($hashBytes).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        $header = @{
+            'alg'      = 'RS256'
+            'typ'      = 'JWT'
+            'x5t#S256' = $base64Thumbprint
+        } | ConvertTo-Json
+        $base64Header = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($header))
+
+        $currentUnixTimestamp = [math]::Round(((Get-Date).ToUniversalTime() - ([datetime]'1970-01-01T00:00:00Z').ToUniversalTime()).TotalSeconds)
+
+        $payload = [Ordered]@{
+            'iss' = "$entraidappid"
+            'sub' = "$entraidappid"
+            'aud' = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
+            'exp' = ($currentUnixTimestamp + 3600)
+            'nbf' = ($currentUnixTimestamp - 300)
+            'iat' = $currentUnixTimestamp
+            'jti' = [Guid]::NewGuid().ToString()
+        } | ConvertTo-Json
+        $base64Payload = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payload)).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        $rsaPrivate = $Certificate.PrivateKey
+        $rsa = [System.Security.Cryptography.RSACryptoServiceProvider]::new()
+        $rsa.ImportParameters($rsaPrivate.ExportParameters($true))
+
+        $signatureInput = "$base64Header.$base64Payload"
+        $signature = $rsa.SignData([Text.Encoding]::UTF8.GetBytes($signatureInput), 'SHA256')
+        $base64Signature = [System.Convert]::ToBase64String($signature).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        if (-not $Certificate.HasPrivateKey -or -not $Certificate.PrivateKey) {
+            throw "The certificate does not have a private key."
+        }
+
+        $jwtToken = "$($base64Header).$($base64Payload).$($base64Signature)"
+
+        $createEntraAccessTokenBody = @{
+            grant_type            = 'client_credentials'
+            client_id             = $entraidappid
+            client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+            client_assertion      = $jwtToken
+            resource              = 'https://graph.microsoft.com'
+        }
+
+        $createEntraAccessTokenSplatParams = @{
+            Uri         = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
+            Body        = $createEntraAccessTokenBody
+            Method      = 'POST'
+            ContentType = 'application/x-www-form-urlencoded'
+            Verbose     = $false
+            ErrorAction = 'Stop'
+        }
+
+        $createEntraAccessTokenResponse = Invoke-RestMethod @createEntraAccessTokenSplatParams
+        Write-Output $createEntraAccessTokenResponse.access_token
+    }
+    catch {
+        $PSCmdlet.ThrowTerminatingError($_)
+    }
+}
+
+function Get-MSEntraCertificate {
+    [CmdletBinding()]
+    param()
+    try {
+        $rawCertificate = [system.convert]::FromBase64String($EntraIdCertificateBase64String)
+        $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($rawCertificate, $EntraIdCertificatePassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)
+        Write-Output $certificate
+    }
+    catch {
+        $PSCmdlet.ThrowTerminatingError($_)
+    }
+}
+
+#endregion functions
+
+try {
+    Write-Verbose 'connecting to MS-Entra'
+    $certificate = Get-MSEntraCertificate
+    $entraToken = Get-MSEntraAccessToken -Certificate $certificate
+
+    $authorization = @{
+        Authorization  = "Bearer $entraToken"
+        'Content-Type' = "application/json"
+        Accept         = "application/json"
+    }
+
+    $actionMessage = "getting Team settings details for Team ID [$groupId]"
+    Write-Information $actionMessage
+
+    $teamsResponse = Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/teams/$groupId" -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
+
+    $memberSettings = $teamsResponse.memberSettings
+    $messagingSettings = $teamsResponse.messagingSettings
+    $funSettings = $teamsResponse.funSettings
+    $guestSettings = $teamsResponse.guestSettings
+
+    $returnObject = @{
+        m_allowCreatePrivateChannels        = $memberSettings.allowCreatePrivateChannels
+        m_allowCreateUpdateChannels         = $memberSettings.allowCreateUpdateChannels
+        m_allowDeleteChannels               = $memberSettings.allowDeleteChannels
+        m_allowAddRemoveApps                = $memberSettings.allowAddRemoveApps
+        m_allowCreateUpdateRemoveTabs       = $memberSettings.allowCreateUpdateRemoveTabs
+        m_allowCreateUpdateRemoveConnectors = $memberSettings.allowCreateUpdateRemoveConnectors
+        g_allowCreateUpdateChannels         = $guestSettings.allowCreateUpdateChannels
+        g_allowDeleteChannels               = $guestSettings.allowDeleteChannels
+        mes_allowUserEditMessages           = $messagingSettings.allowUserEditMessages
+        mes_allowUserDeleteMessages         = $messagingSettings.allowUserDeleteMessages
+        mes_allowOwnerDeleteMessages        = $messagingSettings.allowOwnerDeleteMessages
+        mes_allowTeamMentions               = $messagingSettings.allowTeamMentions
+        mes_allowChannelMentions            = $messagingSettings.allowChannelMentions
+        f_allowGiphy                        = $funSettings.allowGiphy
+        f_giphyContentRating                = if ($funSettings.giphyContentRating -eq 'strict') { $true } else { $false }
+        f_allowStickersAndMemes             = $funSettings.allowStickersAndMemes
+        f_allowCustomMemes                  = $funSettings.allowCustomMemes
+    }
+    Write-Output $returnObject
+}
+catch {
+    $ex = $PSItem
+    if ($($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or
+        $($ex.Exception.GetType().FullName -eq 'System.Net.WebException')) {
+        $errorObj = Resolve-MicrosoftGraphAPIError -ErrorObject $ex
+        $auditMessage = "Error $($actionMessage). Error: $($errorObj.FriendlyMessage)"
+        $warningMessage = "Error at Line [$($errorObj.ScriptLineNumber)]: $($errorObj.Line). Error: $($errorObj.ErrorDetails)"
+    }
+    else {
+        $auditMessage = "Error $($actionMessage). Error: $($ex.Exception.Message)"
+        $warningMessage = "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
+    }
+
+    Write-Warning $warningMessage
+    Write-Error $auditMessage
+}
+
+'@ 
+$tmpModel = @'
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
@@ -1055,10 +1789,9 @@ catch {
     Write-Error $auditMessage
 }
 
-
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
@@ -1070,12 +1803,12 @@ teams-edit-team-details | Get-Team-Parameters
 Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_15_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "True" -returnObject ([Ref]$dataSourceGuid_15) 
 <# End: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
 
-<# Begin: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+<# Begin: DataSource "teams-edit-team-details | Get-Team-Visibility-Options" #>
 $tmpPsScript = @'
 #######################################################################
 # Template: HelloID SA Powershell data source
-# Name: teams-edit-team-details | Get-Team-Parameters
-# Date: 03-04-2026
+# Name: teams-edit-team-details | Get-Team-Visibility-Options
+# Date: 20-04-2026
 #######################################################################
 
 # For basic information about powershell data sources see:
@@ -1091,238 +1824,79 @@ $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
 # global variables (Automation --> Variable library):
-# Outcommented as these are set from Global Variables
-# $EntraIdTenantId = ""
-# $EntraIdAppId = ""
-# $EntraIdCertificateBase64String = ""
-# $EntraIdCertificatePassword = ""
 
 # variables configured in form
 $groupId = $datasource.selectedgroup.GroupId
+$visibility = $datasource.selectedgroup.Visibility
 
 #endregion init
 
 #region functions
-function Resolve-MicrosoftGraphAPIError {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory)]
-        [object]
-        $ErrorObject
-    )
-    process {
-        $httpErrorObj = [PSCustomObject]@{
-            ScriptLineNumber = $ErrorObject.InvocationInfo.ScriptLineNumber
-            Line             = $ErrorObject.InvocationInfo.Line
-            ErrorDetails     = $ErrorObject.Exception.Message
-            FriendlyMessage  = $ErrorObject.Exception.Message
-        }
-        if (-not [string]::IsNullOrEmpty($ErrorObject.ErrorDetails.Message)) {
-            $httpErrorObj.ErrorDetails = $ErrorObject.ErrorDetails.Message
-        }
-        elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {
-            if ($null -ne $ErrorObject.Exception.Response) {
-                $streamReaderResponse = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()
-                if (-not [string]::IsNullOrEmpty($streamReaderResponse)) {
-                    $httpErrorObj.ErrorDetails = $streamReaderResponse
-                }
-            }
-        }
-        try {
-            $errorDetailsObject = ($httpErrorObj.ErrorDetails | ConvertFrom-Json -ErrorAction Stop)
-            if ($errorDetailsObject.error_description) {
-                $httpErrorObj.FriendlyMessage = $errorDetailsObject.error_description
-            }
-            elseif ($errorDetailsObject.error.message) {
-                $httpErrorObj.FriendlyMessage = "$($errorDetailsObject.error.code): $($errorDetailsObject.error.message)"
-            }
-            elseif ($errorDetailsObject.error.details.message) {
-                $httpErrorObj.FriendlyMessage = "$($errorDetailsObject.error.details.code): $($errorDetailsObject.error.details.message)"
-            }
-            else {
-                $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails
-            }
-        }
-        catch {
-            $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails
-        }
-        Write-Output $httpErrorObj
-    }
-}
-
-function Get-MSEntraAccessToken {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        $Certificate
-    )
-    try {
-        $derBytes = $Certificate.RawData
-        $sha256 = [System.Security.Cryptography.SHA256]::Create()
-        $hashBytes = $sha256.ComputeHash($derBytes)
-        $base64Thumbprint = [System.Convert]::ToBase64String($hashBytes).Replace('+', '-').Replace('/', '_').Replace('=', '')
-
-        $header = @{
-            'alg'      = 'RS256'
-            'typ'      = 'JWT'
-            'x5t#S256' = $base64Thumbprint
-        } | ConvertTo-Json
-        $base64Header = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($header))
-
-        $currentUnixTimestamp = [math]::Round(((Get-Date).ToUniversalTime() - ([datetime]'1970-01-01T00:00:00Z').ToUniversalTime()).TotalSeconds)
-
-        $payload = [Ordered]@{
-            'iss' = "$entraidappid"
-            'sub' = "$entraidappid"
-            'aud' = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
-            'exp' = ($currentUnixTimestamp + 3600)
-            'nbf' = ($currentUnixTimestamp - 300)
-            'iat' = $currentUnixTimestamp
-            'jti' = [Guid]::NewGuid().ToString()
-        } | ConvertTo-Json
-        $base64Payload = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payload)).Replace('+', '-').Replace('/', '_').Replace('=', '')
-
-        $rsaPrivate = $Certificate.PrivateKey
-        $rsa = [System.Security.Cryptography.RSACryptoServiceProvider]::new()
-        $rsa.ImportParameters($rsaPrivate.ExportParameters($true))
-
-        $signatureInput = "$base64Header.$base64Payload"
-        $signature = $rsa.SignData([Text.Encoding]::UTF8.GetBytes($signatureInput), 'SHA256')
-        $base64Signature = [System.Convert]::ToBase64String($signature).Replace('+', '-').Replace('/', '_').Replace('=', '')
-
-        if (-not $Certificate.HasPrivateKey -or -not $Certificate.PrivateKey) {
-            throw "The certificate does not have a private key."
-        }
-
-        $jwtToken = "$($base64Header).$($base64Payload).$($base64Signature)"
-
-        $createEntraAccessTokenBody = @{
-            grant_type            = 'client_credentials'
-            client_id             = $entraidappid
-            client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
-            client_assertion      = $jwtToken
-            resource              = 'https://graph.microsoft.com'
-        }
-
-        $createEntraAccessTokenSplatParams = @{
-            Uri         = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
-            Body        = $createEntraAccessTokenBody
-            Method      = 'POST'
-            ContentType = 'application/x-www-form-urlencoded'
-            Verbose     = $false
-            ErrorAction = 'Stop'
-        }
-
-        $createEntraAccessTokenResponse = Invoke-RestMethod @createEntraAccessTokenSplatParams
-        Write-Output $createEntraAccessTokenResponse.access_token
-    }
-    catch {
-        $PSCmdlet.ThrowTerminatingError($_)
-    }
-}
-
-function Get-MSEntraCertificate {
-    [CmdletBinding()]
-    param()
-    try {
-        $rawCertificate = [system.convert]::FromBase64String($EntraIdCertificateBase64String)
-        $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($rawCertificate, $EntraIdCertificatePassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)
-        Write-Output $certificate
-    }
-    catch {
-        $PSCmdlet.ThrowTerminatingError($_)
-    }
-}
 
 #endregion functions
 
 try {
-    Write-Verbose 'connecting to MS-Entra'
-    $certificate = Get-MSEntraCertificate
-    $entraToken = Get-MSEntraAccessToken -Certificate $certificate
-
-    $authorization = @{
-        Authorization  = "Bearer $entraToken"
-        'Content-Type' = "application/json"
-        Accept         = "application/json"
-    }
-
-    $actionMessage = "getting Team settings details for Team ID [$groupId]"
+    $actionMessage = "getting Team visibility details for Team ID [$groupId]"
     Write-Information $actionMessage
 
-    $teamsResponse = Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/teams/$groupId" -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
+    $returnObject = @(
+        @{
+            label    = 'Public'
+            value    = 'Public'
+            selected = if ($visibility -eq 'Public') { 1 } else { 0 }
+        }
+        @{
+            label    = 'Private'
+            value    = 'Private'
+            selected = if ($visibility -eq 'Private') { 1 } else { 0 }
+        }
+    )
 
-    $memberSettings = $teamsResponse.memberSettings
-    $messagingSettings = $teamsResponse.messagingSettings
-    $funSettings = $teamsResponse.funSettings
-    $guestSettings = $teamsResponse.guestSettings
-
-    $returnObject = @{
-        m_allowCreatePrivateChannels        = $memberSettings.allowCreatePrivateChannels
-        m_allowCreateUpdateChannels         = $memberSettings.allowCreateUpdateChannels
-        m_allowDeleteChannels               = $memberSettings.allowDeleteChannels
-        m_allowAddRemoveApps                = $memberSettings.allowAddRemoveApps
-        m_allowCreateUpdateRemoveTabs       = $memberSettings.allowCreateUpdateRemoveTabs
-        m_allowCreateUpdateRemoveConnectors = $memberSettings.allowCreateUpdateRemoveConnectors
-        g_allowCreateUpdateChannels         = $guestSettings.allowCreateUpdateChannels
-        g_allowDeleteChannels               = $guestSettings.allowDeleteChannels
-        mes_allowUserEditMessages           = $messagingSettings.allowUserEditMessages
-        mes_allowUserDeleteMessages         = $messagingSettings.allowUserDeleteMessages
-        mes_allowOwnerDeleteMessages        = $messagingSettings.allowOwnerDeleteMessages
-        mes_allowTeamMentions               = $messagingSettings.allowTeamMentions
-        mes_allowChannelMentions            = $messagingSettings.allowChannelMentions
-        f_allowGiphy                        = $funSettings.allowGiphy
-        f_giphyContentRating                = if ($funSettings.giphyContentRating -eq 'strict') { $true } else { $false }
-        f_allowStickersAndMemes             = $funSettings.allowStickersAndMemes
-        f_allowCustomMemes                  = $funSettings.allowCustomMemes
+    if ($visibility -eq 'HiddenMembership') {
+        $returnObject += @(
+            @{
+                label    = 'HiddenMembership'
+                value    = 'HiddenMembership'
+                selected = if ($visibility -eq 'HiddenMembership') { 1 } else { 0 }
+            }
+        )
     }
     Write-Output $returnObject
 }
 catch {
     $ex = $PSItem
-    if ($($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or
-        $($ex.Exception.GetType().FullName -eq 'System.Net.WebException')) {
-        $errorObj = Resolve-MicrosoftGraphAPIError -ErrorObject $ex
-        $auditMessage = "Error $($actionMessage). Error: $($errorObj.FriendlyMessage)"
-        $warningMessage = "Error at Line [$($errorObj.ScriptLineNumber)]: $($errorObj.Line). Error: $($errorObj.ErrorDetails)"
-    }
-    else {
-        $auditMessage = "Error $($actionMessage). Error: $($ex.Exception.Message)"
-        $warningMessage = "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
-    }
-
-    Write-Warning $warningMessage
-    Write-Error $auditMessage
+    Write-Warning "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
+    Write-Error "Error $($actionMessage). Error: $($ex.Exception.Message)"
+    # exit # use when using multiple try/catch and the script must stop
 }
-
 
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"selected","type":0},{"key":"label","type":0},{"key":"value","type":0}]
 '@ 
 $tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+[{"description":null,"translateDescription":false,"inputFieldType":1,"key":"selectedgroup","type":0,"options":1}]
 '@ 
 $dataSourceGuid_1 = [PSCustomObject]@{} 
 $dataSourceGuid_1_Name = @'
-teams-edit-team-details | Get-Team-Parameters
+teams-edit-team-details | Get-Team-Visibility-Options
 '@ 
 Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_1_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "True" -returnObject ([Ref]$dataSourceGuid_1) 
-<# End: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+<# End: DataSource "teams-edit-team-details | Get-Team-Visibility-Options" #>
 
-<# Begin: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+<# Begin: DataSource "teams-edit-team-details | Teams-Get-All-Entra-Id-Users" #>
 $tmpPsScript = @'
 #######################################################################
 # Template: HelloID SA Powershell data source
-# Name: teams-edit-team-details | Get-Team-Parameters
-# Date: 03-04-2026
+# Name:     teams-edit-team-details | Teams-Get-All-Entra-Id-Users
+# Date:     20-04-2026
 #######################################################################
 
 # For basic information about powershell data sources see:
-# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources.html
+# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources/add,-edit,-or-remove-a-powershell-data-source.html#add-a-powershell-data-source
 
 # Service automation variables:
-# https://docs.helloid.com/en/service-automation/service-automation-variables.html
+# https://docs.helloid.com/en/service-automation/service-automation-variables/service-automation-variable-reference.html
 
 #region init
 
@@ -1330,15 +1904,27 @@ $VerbosePreference = "SilentlyContinue"
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
+# Fixed values
+$filter = "`$filter=accountEnabled eq true" # Get all enabled users
+
+$propertiesToSelect = @(
+    "id",
+    "userPrincipalName",
+    "displayName",
+    "mail",
+    "description",
+    "department",
+    "jobTitle",
+    "companyName",
+    "accountEnabled"
+) # Properties to select from Microsoft Graph API, comma separated
+
 # global variables (Automation --> Variable library):
 # Outcommented as these are set from Global Variables
 # $EntraIdTenantId = ""
 # $EntraIdAppId = ""
 # $EntraIdCertificateBase64String = ""
 # $EntraIdCertificatePassword = ""
-
-# variables configured in form
-$groupId = $datasource.selectedgroup.GroupId
 
 #endregion init
 
@@ -1482,41 +2068,44 @@ try {
     $entraToken = Get-MSEntraAccessToken -Certificate $certificate
 
     $authorization = @{
-        Authorization  = "Bearer $entraToken"
-        'Content-Type' = "application/json"
-        Accept         = "application/json"
+        Authorization     = "Bearer $entraToken"
+        'Content-Type'    = "application/json"
+        Accept            = "application/json"
+        "ConsistencyLevel" = "eventual"
     }
 
-    $actionMessage = "getting Team settings details for Team ID [$groupId]"
-    Write-Information $actionMessage
+    $actionMessage = "querying Microsoft Entra ID Users matching search value [$filter]"
+    $microsoftEntraIDUsers = [System.Collections.ArrayList]@()
+    do {
+        $getMicrosoftEntraIDUsersSplatParams = @{
+            Uri         = "https://graph.microsoft.com/v1.0/users?$filter&`$select=$($propertiesToSelect -join ',')&`$top=999&`$count=true"
+            Headers     = $authorization
+            Method      = "GET"
+            Verbose     = $false
+            ErrorAction = "Stop"
+        }
+        if (-not[string]::IsNullOrEmpty($getMicrosoftEntraIDUsersResponse.'@odata.nextLink')) {
+            $getMicrosoftEntraIDUsersSplatParams["Uri"] = $getMicrosoftEntraIDUsersResponse.'@odata.nextLink'
+        }
 
-    $teamsResponse = Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/teams/$groupId" -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
+        $getMicrosoftEntraIDUsersResponse = $null
+        $getMicrosoftEntraIDUsersResponse = Invoke-RestMethod @getMicrosoftEntraIDUsersSplatParams
 
-    $memberSettings = $teamsResponse.memberSettings
-    $messagingSettings = $teamsResponse.messagingSettings
-    $funSettings = $teamsResponse.funSettings
-    $guestSettings = $teamsResponse.guestSettings
+        $getMicrosoftEntraIDUsersResponse.Value = $getMicrosoftEntraIDUsersResponse.Value | Select-Object $propertiesToSelect
 
-    $returnObject = @{
-        m_allowCreatePrivateChannels        = $memberSettings.allowCreatePrivateChannels
-        m_allowCreateUpdateChannels         = $memberSettings.allowCreateUpdateChannels
-        m_allowDeleteChannels               = $memberSettings.allowDeleteChannels
-        m_allowAddRemoveApps                = $memberSettings.allowAddRemoveApps
-        m_allowCreateUpdateRemoveTabs       = $memberSettings.allowCreateUpdateRemoveTabs
-        m_allowCreateUpdateRemoveConnectors = $memberSettings.allowCreateUpdateRemoveConnectors
-        g_allowCreateUpdateChannels         = $guestSettings.allowCreateUpdateChannels
-        g_allowDeleteChannels               = $guestSettings.allowDeleteChannels
-        mes_allowUserEditMessages           = $messagingSettings.allowUserEditMessages
-        mes_allowUserDeleteMessages         = $messagingSettings.allowUserDeleteMessages
-        mes_allowOwnerDeleteMessages        = $messagingSettings.allowOwnerDeleteMessages
-        mes_allowTeamMentions               = $messagingSettings.allowTeamMentions
-        mes_allowChannelMentions            = $messagingSettings.allowChannelMentions
-        f_allowGiphy                        = $funSettings.allowGiphy
-        f_giphyContentRating                = if ($funSettings.giphyContentRating -eq 'strict') { $true } else { $false }
-        f_allowStickersAndMemes             = $funSettings.allowStickersAndMemes
-        f_allowCustomMemes                  = $funSettings.allowCustomMemes
+        if ($getMicrosoftEntraIDUsersResponse.Value -is [array]) {
+            [void]$microsoftEntraIDUsers.AddRange($getMicrosoftEntraIDUsersResponse.Value)
+        }
+        else {
+            [void]$microsoftEntraIDUsers.Add($getMicrosoftEntraIDUsersResponse.Value)
+        }
+    } while (-not[string]::IsNullOrEmpty($getMicrosoftEntraIDUsersResponse.'@odata.nextLink'))
+    Write-Information "Queried Microsoft Entra ID Users matching search value [$filter]. Result count: $(@($microsoftEntraIDUsers).Count)"
+
+    $actionMessage = "sending results to HelloID"
+    $microsoftEntraIDUsers | ForEach-Object {
+        Write-Output $_
     }
-    Write-Output $returnObject
 }
 catch {
     $ex = $PSItem
@@ -1530,25 +2119,23 @@ catch {
         $auditMessage = "Error $($actionMessage). Error: $($ex.Exception.Message)"
         $warningMessage = "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
     }
-
     Write-Warning $warningMessage
     Write-Error $auditMessage
 }
 
-
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"id","type":0},{"key":"userPrincipalName","type":0},{"key":"displayName","type":0},{"key":"mail","type":0},{"key":"description","type":0},{"key":"department","type":0},{"key":"jobTitle","type":0},{"key":"companyName","type":0},{"key":"accountEnabled","type":0}]
 '@ 
 $tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+[]
 '@ 
 $dataSourceGuid_3 = [PSCustomObject]@{} 
 $dataSourceGuid_3_Name = @'
-teams-edit-team-details | Get-Team-Parameters
+teams-edit-team-details | Teams-Get-All-Entra-Id-Users
 '@ 
 Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_3_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "True" -returnObject ([Ref]$dataSourceGuid_3) 
-<# End: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+<# End: DataSource "teams-edit-team-details | Teams-Get-All-Entra-Id-Users" #>
 
 <# Begin: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
 $tmpPsScript = @'
@@ -1775,10 +2362,9 @@ catch {
     Write-Error $auditMessage
 }
 
-
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
@@ -2015,10 +2601,9 @@ catch {
     Write-Error $auditMessage
 }
 
-
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
@@ -2255,10 +2840,9 @@ catch {
     Write-Error $auditMessage
 }
 
-
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
@@ -2495,10 +3079,9 @@ catch {
     Write-Error $auditMessage
 }
 
-
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
@@ -2735,10 +3318,9 @@ catch {
     Write-Error $auditMessage
 }
 
-
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
@@ -2750,25 +3332,38 @@ teams-edit-team-details | Get-Team-Parameters
 Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_10_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "True" -returnObject ([Ref]$dataSourceGuid_10) 
 <# End: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
 
-<# Begin: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+<# Begin: DataSource "teams-edit-team-details | Teams-Get-Team-Owners" #>
 $tmpPsScript = @'
 #######################################################################
 # Template: HelloID SA Powershell data source
-# Name: teams-edit-team-details | Get-Team-Parameters
-# Date: 03-04-2026
+# Name:     teams-edit-team-details | Teams-Get-Team-Owners
+# Date:     20-04-2026
 #######################################################################
 
 # For basic information about powershell data sources see:
-# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources.html
+# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources/add,-edit,-or-remove-a-powershell-data-source.html#add-a-powershell-data-source
 
 # Service automation variables:
-# https://docs.helloid.com/en/service-automation/service-automation-variables.html
+# https://docs.helloid.com/en/service-automation/service-automation-variables/service-automation-variable-reference.html
 
 #region init
 
 $VerbosePreference = "SilentlyContinue"
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
+
+# Fixed values
+$propertiesToSelect = @(
+    "id",
+    "userPrincipalName",
+    "displayName",
+    "mail",
+    "description",
+    "department",
+    "jobTitle",
+    "companyName",
+    "accountEnabled"
+) # Properties to select from Microsoft Graph API, comma separated
 
 # global variables (Automation --> Variable library):
 # Outcommented as these are set from Global Variables
@@ -2922,41 +3517,44 @@ try {
     $entraToken = Get-MSEntraAccessToken -Certificate $certificate
 
     $authorization = @{
-        Authorization  = "Bearer $entraToken"
-        'Content-Type' = "application/json"
-        Accept         = "application/json"
+        Authorization     = "Bearer $entraToken"
+        'Content-Type'    = "application/json"
+        Accept            = "application/json"
+        "ConsistencyLevel" = "eventual"
     }
 
-    $actionMessage = "getting Team settings details for Team ID [$groupId]"
-    Write-Information $actionMessage
+    $actionMessage = "querying Microsoft Entra ID Team owners for Team ID [$groupId]"
+    $microsoftEntraIDUsers = [System.Collections.ArrayList]@()
+    do {
+        $getMicrosoftEntraIDUsersSplatParams = @{
+            Uri         = "https://graph.microsoft.com/v1.0/groups/$groupId/owners?$`$select=$(($propertiesToSelect -join ','))"
+            Headers     = $authorization
+            Method      = "GET"
+            Verbose     = $false
+            ErrorAction = "Stop"
+        }
+        if (-not[string]::IsNullOrEmpty($getMicrosoftEntraIDUsersResponse.'@odata.nextLink')) {
+            $getMicrosoftEntraIDUsersSplatParams["Uri"] = $getMicrosoftEntraIDUsersResponse.'@odata.nextLink'
+        }
 
-    $teamsResponse = Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/teams/$groupId" -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
+        $getMicrosoftEntraIDUsersResponse = $null
+        $getMicrosoftEntraIDUsersResponse = Invoke-RestMethod @getMicrosoftEntraIDUsersSplatParams
 
-    $memberSettings = $teamsResponse.memberSettings
-    $messagingSettings = $teamsResponse.messagingSettings
-    $funSettings = $teamsResponse.funSettings
-    $guestSettings = $teamsResponse.guestSettings
+        $getMicrosoftEntraIDUsersResponse.Value = $getMicrosoftEntraIDUsersResponse.Value | Select-Object $propertiesToSelect
 
-    $returnObject = @{
-        m_allowCreatePrivateChannels        = $memberSettings.allowCreatePrivateChannels
-        m_allowCreateUpdateChannels         = $memberSettings.allowCreateUpdateChannels
-        m_allowDeleteChannels               = $memberSettings.allowDeleteChannels
-        m_allowAddRemoveApps                = $memberSettings.allowAddRemoveApps
-        m_allowCreateUpdateRemoveTabs       = $memberSettings.allowCreateUpdateRemoveTabs
-        m_allowCreateUpdateRemoveConnectors = $memberSettings.allowCreateUpdateRemoveConnectors
-        g_allowCreateUpdateChannels         = $guestSettings.allowCreateUpdateChannels
-        g_allowDeleteChannels               = $guestSettings.allowDeleteChannels
-        mes_allowUserEditMessages           = $messagingSettings.allowUserEditMessages
-        mes_allowUserDeleteMessages         = $messagingSettings.allowUserDeleteMessages
-        mes_allowOwnerDeleteMessages        = $messagingSettings.allowOwnerDeleteMessages
-        mes_allowTeamMentions               = $messagingSettings.allowTeamMentions
-        mes_allowChannelMentions            = $messagingSettings.allowChannelMentions
-        f_allowGiphy                        = $funSettings.allowGiphy
-        f_giphyContentRating                = if ($funSettings.giphyContentRating -eq 'strict') { $true } else { $false }
-        f_allowStickersAndMemes             = $funSettings.allowStickersAndMemes
-        f_allowCustomMemes                  = $funSettings.allowCustomMemes
+        if ($getMicrosoftEntraIDUsersResponse.Value -is [array]) {
+            [void]$microsoftEntraIDUsers.AddRange($getMicrosoftEntraIDUsersResponse.Value)
+        }
+        else {
+            [void]$microsoftEntraIDUsers.Add($getMicrosoftEntraIDUsersResponse.Value)
+        }
+    } while (-not[string]::IsNullOrEmpty($getMicrosoftEntraIDUsersResponse.'@odata.nextLink'))
+    Write-Information "Queried Microsoft Entra ID Team owners for Team ID [$groupId]. Result count: $(@($microsoftEntraIDUsers).Count)"
+
+    $actionMessage = "sending results to HelloID"
+    $microsoftEntraIDUsers | ForEach-Object {
+        Write-Output $_
     }
-    Write-Output $returnObject
 }
 catch {
     $ex = $PSItem
@@ -2970,39 +3568,37 @@ catch {
         $auditMessage = "Error $($actionMessage). Error: $($ex.Exception.Message)"
         $warningMessage = "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
     }
-
     Write-Warning $warningMessage
     Write-Error $auditMessage
 }
 
-
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"id","type":0},{"key":"userPrincipalName","type":0},{"key":"displayName","type":0},{"key":"mail","type":0},{"key":"description","type":0},{"key":"department","type":0},{"key":"jobTitle","type":0},{"key":"companyName","type":0},{"key":"accountEnabled","type":0}]
 '@ 
 $tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+[{"description":null,"translateDescription":false,"inputFieldType":1,"key":"selectedgroup","type":0,"options":1}]
 '@ 
 $dataSourceGuid_2 = [PSCustomObject]@{} 
 $dataSourceGuid_2_Name = @'
-teams-edit-team-details | Get-Team-Parameters
+teams-edit-team-details | Teams-Get-Team-Owners
 '@ 
 Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_2_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "True" -returnObject ([Ref]$dataSourceGuid_2) 
-<# End: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+<# End: DataSource "teams-edit-team-details | Teams-Get-Team-Owners" #>
 
-<# Begin: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+<# Begin: DataSource "teams-edit-team-details | Validation" #>
 $tmpPsScript = @'
 #######################################################################
 # Template: HelloID SA Powershell data source
-# Name: teams-edit-team-details | Get-Team-Parameters
-# Date: 03-04-2026
+# Name:     teams-edit-team-details | Validation
+# Date:     20-04-2026
 #######################################################################
 
 # For basic information about powershell data sources see:
-# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources.html
+# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources/add,-edit,-or-remove-a-powershell-data-source.html#add-a-powershell-data-source
 
 # Service automation variables:
-# https://docs.helloid.com/en/service-automation/service-automation-variables.html
+# https://docs.helloid.com/en/service-automation/service-automation-variables/service-automation-variable-reference.html
 
 #region init
 
@@ -3010,19 +3606,118 @@ $VerbosePreference = "SilentlyContinue"
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
+$outputText = [System.Collections.Generic.List[PSCustomObject]]::new()
+
 # global variables (Automation --> Variable library):
 # Outcommented as these are set from Global Variables
 # $EntraIdTenantId = ""
 # $EntraIdAppId = ""
 # $EntraIdCertificateBase64String = ""
 # $EntraIdCertificatePassword = ""
+# $TeamsMailsuffix = ""
 
-# variables configured in form
-$groupId = $datasource.selectedgroup.GroupId
-
+# variables configured in form:
+$displayName = $dataSource.displayName
+$groupId = $dataSource.selectedgroup.GroupId
+$mail = $displayName.Replace(" ", "") + "@" + $TeamsMailsuffix 
+$mailNickname = $displayName.Replace(" ", "")
 #endregion init
 
 #region functions
+function Get-MSEntraAccessToken {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        $Certificate
+    )
+    try {
+        # Get the DER encoded bytes of the certificate
+        $derBytes = $Certificate.RawData
+
+        # Compute the SHA-256 hash of the DER encoded bytes
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        $hashBytes = $sha256.ComputeHash($derBytes)
+        $base64Thumbprint = [System.Convert]::ToBase64String($hashBytes).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        # Create a JWT (JSON Web Token) header
+        $header = @{
+            'alg'      = 'RS256'
+            'typ'      = 'JWT'
+            'x5t#S256' = $base64Thumbprint
+        } | ConvertTo-Json
+        $base64Header = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($header))
+
+        # Calculate the Unix timestamp (seconds since 1970-01-01T00:00:00Z) for 'exp', 'nbf' and 'iat'
+        $currentUnixTimestamp = [math]::Round(((Get-Date).ToUniversalTime() - ([datetime]'1970-01-01T00:00:00Z').ToUniversalTime()).TotalSeconds)
+
+        # Create a JWT payload
+        $payload = [Ordered]@{
+            'iss' = "$entraidappid"
+            'sub' = "$entraidappid"
+            'aud' = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
+            'exp' = ($currentUnixTimestamp + 3600) # Expires in 1 hour
+            'nbf' = ($currentUnixTimestamp - 300) # Not before 5 minutes ago
+            'iat' = $currentUnixTimestamp
+            'jti' = [Guid]::NewGuid().ToString()
+        } | ConvertTo-Json
+        $base64Payload = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payload)).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        # Extract the private key from the certificate
+        $rsaPrivate = $Certificate.PrivateKey
+        $rsa = [System.Security.Cryptography.RSACryptoServiceProvider]::new()
+        $rsa.ImportParameters($rsaPrivate.ExportParameters($true))
+
+        # Sign the JWT
+        $signatureInput = "$base64Header.$base64Payload"
+        $signature = $rsa.SignData([Text.Encoding]::UTF8.GetBytes($signatureInput), 'SHA256')
+        $base64Signature = [System.Convert]::ToBase64String($signature).Replace('+', '-').Replace('/', '_').Replace('=', '')
+	
+        # Extract the private key from the certificate
+        if (-not $Certificate.HasPrivateKey -or -not $Certificate.PrivateKey) {
+            throw "The certificate does not have a private key."
+        }
+
+        # Create the JWT token
+        $jwtToken = "$($base64Header).$($base64Payload).$($base64Signature)"
+
+        $createEntraAccessTokenBody = @{
+            grant_type            = 'client_credentials'
+            client_id             = $entraidappid
+            client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+            client_assertion      = $jwtToken
+            resource              = 'https://graph.microsoft.com'
+        }
+
+        $createEntraAccessTokenSplatParams = @{
+            Uri         = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
+            Body        = $createEntraAccessTokenBody
+            Method      = 'POST'
+            ContentType = 'application/x-www-form-urlencoded'
+            Verbose     = $false
+            ErrorAction = 'Stop'
+        }
+
+        $createEntraAccessTokenResponse = Invoke-RestMethod @createEntraAccessTokenSplatParams
+        Write-Output $createEntraAccessTokenResponse.access_token
+    }
+    catch {
+        $PSCmdlet.ThrowTerminatingError($_)
+    }
+}
+
+function Get-MSEntraCertificate {
+    [CmdletBinding()]
+    param()
+    try {
+        $rawCertificate = [system.convert]::FromBase64String($EntraIdCertificateBase64String)
+        $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($rawCertificate, $EntraIdCertificatePassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)
+        Write-Output $certificate
+    }
+    catch {
+        $PSCmdlet.ThrowTerminatingError($_)
+    }
+}
+
 function Resolve-MicrosoftGraphAPIError {
     [CmdletBinding()]
     param (
@@ -3069,134 +3764,94 @@ function Resolve-MicrosoftGraphAPIError {
         Write-Output $httpErrorObj
     }
 }
-
-function Get-MSEntraAccessToken {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        $Certificate
-    )
-    try {
-        $derBytes = $Certificate.RawData
-        $sha256 = [System.Security.Cryptography.SHA256]::Create()
-        $hashBytes = $sha256.ComputeHash($derBytes)
-        $base64Thumbprint = [System.Convert]::ToBase64String($hashBytes).Replace('+', '-').Replace('/', '_').Replace('=', '')
-
-        $header = @{
-            'alg'      = 'RS256'
-            'typ'      = 'JWT'
-            'x5t#S256' = $base64Thumbprint
-        } | ConvertTo-Json
-        $base64Header = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($header))
-
-        $currentUnixTimestamp = [math]::Round(((Get-Date).ToUniversalTime() - ([datetime]'1970-01-01T00:00:00Z').ToUniversalTime()).TotalSeconds)
-
-        $payload = [Ordered]@{
-            'iss' = "$entraidappid"
-            'sub' = "$entraidappid"
-            'aud' = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
-            'exp' = ($currentUnixTimestamp + 3600)
-            'nbf' = ($currentUnixTimestamp - 300)
-            'iat' = $currentUnixTimestamp
-            'jti' = [Guid]::NewGuid().ToString()
-        } | ConvertTo-Json
-        $base64Payload = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payload)).Replace('+', '-').Replace('/', '_').Replace('=', '')
-
-        $rsaPrivate = $Certificate.PrivateKey
-        $rsa = [System.Security.Cryptography.RSACryptoServiceProvider]::new()
-        $rsa.ImportParameters($rsaPrivate.ExportParameters($true))
-
-        $signatureInput = "$base64Header.$base64Payload"
-        $signature = $rsa.SignData([Text.Encoding]::UTF8.GetBytes($signatureInput), 'SHA256')
-        $base64Signature = [System.Convert]::ToBase64String($signature).Replace('+', '-').Replace('/', '_').Replace('=', '')
-
-        if (-not $Certificate.HasPrivateKey -or -not $Certificate.PrivateKey) {
-            throw "The certificate does not have a private key."
-        }
-
-        $jwtToken = "$($base64Header).$($base64Payload).$($base64Signature)"
-
-        $createEntraAccessTokenBody = @{
-            grant_type            = 'client_credentials'
-            client_id             = $entraidappid
-            client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
-            client_assertion      = $jwtToken
-            resource              = 'https://graph.microsoft.com'
-        }
-
-        $createEntraAccessTokenSplatParams = @{
-            Uri         = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
-            Body        = $createEntraAccessTokenBody
-            Method      = 'POST'
-            ContentType = 'application/x-www-form-urlencoded'
-            Verbose     = $false
-            ErrorAction = 'Stop'
-        }
-
-        $createEntraAccessTokenResponse = Invoke-RestMethod @createEntraAccessTokenSplatParams
-        Write-Output $createEntraAccessTokenResponse.access_token
-    }
-    catch {
-        $PSCmdlet.ThrowTerminatingError($_)
-    }
-}
-
-function Get-MSEntraCertificate {
-    [CmdletBinding()]
-    param()
-    try {
-        $rawCertificate = [system.convert]::FromBase64String($EntraIdCertificateBase64String)
-        $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($rawCertificate, $EntraIdCertificatePassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)
-        Write-Output $certificate
-    }
-    catch {
-        $PSCmdlet.ThrowTerminatingError($_)
-    }
-}
-
 #endregion functions
 
+#region lookup
 try {
+
+    $actionMessage = "checking Entra ID for uniqueness"
+
+    # Setup Connection with Entra/Exo
     Write-Verbose 'connecting to MS-Entra'
     $certificate = Get-MSEntraCertificate
     $entraToken = Get-MSEntraAccessToken -Certificate $certificate
-
+    
+    #Add the authorization header to the request
     $authorization = @{
-        Authorization  = "Bearer $entraToken"
-        'Content-Type' = "application/json"
-        Accept         = "application/json"
+        Authorization  = "Bearer $entraToken";
+        'Content-Type' = "application/json";
+        Accept         = "application/json";
+        "ConsistencyLevel" = "eventual" # Needed to filter on specific attributes (https://docs.microsoft.com/en-us/graph/aad-advanced-queries)
+    } 
+
+    $graphApiUrl = "https://graph.microsoft.com/v1.0/groups"
+    $select = '&$select=id,displayName,mail,mailNickname' + '&$top=999 + &$count=true'
+    $filter = "?`$filter=displayName eq '$displayName' or mail eq '$mail' or mailNickname eq '$mailNickname'"
+    $searchUri = $graphApiUrl + $filter + $select
+
+    $entraIDGroupsParams = @{
+        Uri     = $searchUri
+        Method  = 'Get'
+        Headers = $authorization
+        Verbose = $false
     }
 
-    $actionMessage = "getting Team settings details for Team ID [$groupId]"
-    Write-Information $actionMessage
+    $entraIDGroupsResponse = Invoke-RestMethod @entraIDGroupsParams
 
-    $teamsResponse = Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/teams/$groupId" -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
-
-    $memberSettings = $teamsResponse.memberSettings
-    $messagingSettings = $teamsResponse.messagingSettings
-    $funSettings = $teamsResponse.funSettings
-    $guestSettings = $teamsResponse.guestSettings
-
-    $returnObject = @{
-        m_allowCreatePrivateChannels        = $memberSettings.allowCreatePrivateChannels
-        m_allowCreateUpdateChannels         = $memberSettings.allowCreateUpdateChannels
-        m_allowDeleteChannels               = $memberSettings.allowDeleteChannels
-        m_allowAddRemoveApps                = $memberSettings.allowAddRemoveApps
-        m_allowCreateUpdateRemoveTabs       = $memberSettings.allowCreateUpdateRemoveTabs
-        m_allowCreateUpdateRemoveConnectors = $memberSettings.allowCreateUpdateRemoveConnectors
-        g_allowCreateUpdateChannels         = $guestSettings.allowCreateUpdateChannels
-        g_allowDeleteChannels               = $guestSettings.allowDeleteChannels
-        mes_allowUserEditMessages           = $messagingSettings.allowUserEditMessages
-        mes_allowUserDeleteMessages         = $messagingSettings.allowUserDeleteMessages
-        mes_allowOwnerDeleteMessages        = $messagingSettings.allowOwnerDeleteMessages
-        mes_allowTeamMentions               = $messagingSettings.allowTeamMentions
-        mes_allowChannelMentions            = $messagingSettings.allowChannelMentions
-        f_allowGiphy                        = $funSettings.allowGiphy
-        f_giphyContentRating                = if ($funSettings.giphyContentRating -eq 'strict') { $true } else { $false }
-        f_allowStickersAndMemes             = $funSettings.allowStickersAndMemes
-        f_allowCustomMemes                  = $funSettings.allowCustomMemes
+    $entraIDGroups = $entraIDGroupsResponse.value
+    while (![string]::IsNullOrEmpty($entraIDGroupsResponse.'@odata.nextLink')) {
+        $entraIDGroupsResponse = Invoke-RestMethod -Uri $entraIDGroupsResponse.'@odata.nextLink' -Method Get -Headers $authorization -Verbose:$false
+        $entraIDGroups += $entraIDGroupsResponse.value
     }
-    Write-Output $returnObject
+
+    $entraIDGroups = $entraIDGroups | Where-Object { $_.id -ne $groupId } # Exclude the current group being edited
+
+    Write-Information "Found [$($entraIDGroups.Count)] groups"
+
+    foreach ($record in $entraIDGroups) {
+        if ($record.displayName -eq $displayName) {
+            $outputText.Add([PSCustomObject]@{
+                    Message  = "Display name [$displayName] not unique, found on [$($record.displayName)] with id [$($record.id)]"
+                    IsError  = $true
+                    Property = "displayName"
+                })
+        }
+        if ($record.mail -eq $mail) {
+            $outputText.Add([PSCustomObject]@{
+                    Message  = "Mail [$mail] not unique, found on [$($record.displayName)]"
+                    IsError  = $true
+                    Property = "mail"
+                })
+        }
+        if ($record.mailNickname -eq $mailNickname) {
+            $outputText.Add([PSCustomObject]@{
+                    Message  = "Mail nickname [$mailNickname] not unique, found on [$($record.displayName)]"
+                    IsError  = $true
+                    Property = "mailNickname"
+                })
+        }
+    }
+
+    if ($outputText.isError -contains $true) {
+        $outputMessage = "Invalid:"
+    }
+    elseif (-not($outputText.isError -contains $false)) {
+        $outputMessage = "Valid:"
+        $outputText.Add([PSCustomObject]@{
+                Message  = "Team with displayName [$displayName] is unique"
+                IsError  = $false
+                Property = "displayName"
+            })
+    }
+    else {
+        $outputMessage = "Valid:"
+    }
+
+    foreach ($text in $outputText) {
+        $outputMessage += "`n" + $($text.Message)
+    }
+
+    Write-Output $outputMessage
 }
 catch {
     $ex = $PSItem
@@ -3210,25 +3865,25 @@ catch {
         $auditMessage = "Error $($actionMessage). Error: $($ex.Exception.Message)"
         $warningMessage = "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
     }
-
     Write-Warning $warningMessage
     Write-Error $auditMessage
 }
+#endregion lookup
 
 
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"output","type":0}]
 '@ 
 $tmpInput = @'
-[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+[{"description":null,"translateDescription":false,"inputFieldType":1,"key":"displayname","type":0,"options":1},{"description":null,"translateDescription":false,"inputFieldType":1,"key":"selectedgroup","type":0,"options":1}]
 '@ 
 $dataSourceGuid_4 = [PSCustomObject]@{} 
 $dataSourceGuid_4_Name = @'
-teams-edit-team-details | Get-Team-Parameters
+teams-edit-team-details | Validation
 '@ 
 Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_4_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "True" -returnObject ([Ref]$dataSourceGuid_4) 
-<# End: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+<# End: DataSource "teams-edit-team-details | Validation" #>
 
 <# Begin: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
 $tmpPsScript = @'
@@ -3455,10 +4110,9 @@ catch {
     Write-Error $auditMessage
 }
 
-
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
@@ -3695,10 +4349,248 @@ catch {
     Write-Error $auditMessage
 }
 
+'@ 
+$tmpModel = @'
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
+'@ 
+$dataSourceGuid_19 = [PSCustomObject]@{} 
+$dataSourceGuid_19_Name = @'
+teams-edit-team-details | Get-Team-Parameters
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_19_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "True" -returnObject ([Ref]$dataSourceGuid_19) 
+<# End: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+
+<# Begin: DataSource "teams-edit-team-details | Get-Team-Parameters" #>
+$tmpPsScript = @'
+#######################################################################
+# Template: HelloID SA Powershell data source
+# Name: teams-edit-team-details | Get-Team-Parameters
+# Date: 03-04-2026
+#######################################################################
+
+# For basic information about powershell data sources see:
+# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources.html
+
+# Service automation variables:
+# https://docs.helloid.com/en/service-automation/service-automation-variables.html
+
+#region init
+
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
+
+# global variables (Automation --> Variable library):
+# Outcommented as these are set from Global Variables
+# $EntraIdTenantId = ""
+# $EntraIdAppId = ""
+# $EntraIdCertificateBase64String = ""
+# $EntraIdCertificatePassword = ""
+
+# variables configured in form
+$groupId = $datasource.selectedgroup.GroupId
+
+#endregion init
+
+#region functions
+function Resolve-MicrosoftGraphAPIError {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [object]
+        $ErrorObject
+    )
+    process {
+        $httpErrorObj = [PSCustomObject]@{
+            ScriptLineNumber = $ErrorObject.InvocationInfo.ScriptLineNumber
+            Line             = $ErrorObject.InvocationInfo.Line
+            ErrorDetails     = $ErrorObject.Exception.Message
+            FriendlyMessage  = $ErrorObject.Exception.Message
+        }
+        if (-not [string]::IsNullOrEmpty($ErrorObject.ErrorDetails.Message)) {
+            $httpErrorObj.ErrorDetails = $ErrorObject.ErrorDetails.Message
+        }
+        elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {
+            if ($null -ne $ErrorObject.Exception.Response) {
+                $streamReaderResponse = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()
+                if (-not [string]::IsNullOrEmpty($streamReaderResponse)) {
+                    $httpErrorObj.ErrorDetails = $streamReaderResponse
+                }
+            }
+        }
+        try {
+            $errorDetailsObject = ($httpErrorObj.ErrorDetails | ConvertFrom-Json -ErrorAction Stop)
+            if ($errorDetailsObject.error_description) {
+                $httpErrorObj.FriendlyMessage = $errorDetailsObject.error_description
+            }
+            elseif ($errorDetailsObject.error.message) {
+                $httpErrorObj.FriendlyMessage = "$($errorDetailsObject.error.code): $($errorDetailsObject.error.message)"
+            }
+            elseif ($errorDetailsObject.error.details.message) {
+                $httpErrorObj.FriendlyMessage = "$($errorDetailsObject.error.details.code): $($errorDetailsObject.error.details.message)"
+            }
+            else {
+                $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails
+            }
+        }
+        catch {
+            $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails
+        }
+        Write-Output $httpErrorObj
+    }
+}
+
+function Get-MSEntraAccessToken {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        $Certificate
+    )
+    try {
+        $derBytes = $Certificate.RawData
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        $hashBytes = $sha256.ComputeHash($derBytes)
+        $base64Thumbprint = [System.Convert]::ToBase64String($hashBytes).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        $header = @{
+            'alg'      = 'RS256'
+            'typ'      = 'JWT'
+            'x5t#S256' = $base64Thumbprint
+        } | ConvertTo-Json
+        $base64Header = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($header))
+
+        $currentUnixTimestamp = [math]::Round(((Get-Date).ToUniversalTime() - ([datetime]'1970-01-01T00:00:00Z').ToUniversalTime()).TotalSeconds)
+
+        $payload = [Ordered]@{
+            'iss' = "$entraidappid"
+            'sub' = "$entraidappid"
+            'aud' = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
+            'exp' = ($currentUnixTimestamp + 3600)
+            'nbf' = ($currentUnixTimestamp - 300)
+            'iat' = $currentUnixTimestamp
+            'jti' = [Guid]::NewGuid().ToString()
+        } | ConvertTo-Json
+        $base64Payload = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payload)).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        $rsaPrivate = $Certificate.PrivateKey
+        $rsa = [System.Security.Cryptography.RSACryptoServiceProvider]::new()
+        $rsa.ImportParameters($rsaPrivate.ExportParameters($true))
+
+        $signatureInput = "$base64Header.$base64Payload"
+        $signature = $rsa.SignData([Text.Encoding]::UTF8.GetBytes($signatureInput), 'SHA256')
+        $base64Signature = [System.Convert]::ToBase64String($signature).Replace('+', '-').Replace('/', '_').Replace('=', '')
+
+        if (-not $Certificate.HasPrivateKey -or -not $Certificate.PrivateKey) {
+            throw "The certificate does not have a private key."
+        }
+
+        $jwtToken = "$($base64Header).$($base64Payload).$($base64Signature)"
+
+        $createEntraAccessTokenBody = @{
+            grant_type            = 'client_credentials'
+            client_id             = $entraidappid
+            client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+            client_assertion      = $jwtToken
+            resource              = 'https://graph.microsoft.com'
+        }
+
+        $createEntraAccessTokenSplatParams = @{
+            Uri         = "https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token"
+            Body        = $createEntraAccessTokenBody
+            Method      = 'POST'
+            ContentType = 'application/x-www-form-urlencoded'
+            Verbose     = $false
+            ErrorAction = 'Stop'
+        }
+
+        $createEntraAccessTokenResponse = Invoke-RestMethod @createEntraAccessTokenSplatParams
+        Write-Output $createEntraAccessTokenResponse.access_token
+    }
+    catch {
+        $PSCmdlet.ThrowTerminatingError($_)
+    }
+}
+
+function Get-MSEntraCertificate {
+    [CmdletBinding()]
+    param()
+    try {
+        $rawCertificate = [system.convert]::FromBase64String($EntraIdCertificateBase64String)
+        $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($rawCertificate, $EntraIdCertificatePassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)
+        Write-Output $certificate
+    }
+    catch {
+        $PSCmdlet.ThrowTerminatingError($_)
+    }
+}
+
+#endregion functions
+
+try {
+    Write-Verbose 'connecting to MS-Entra'
+    $certificate = Get-MSEntraCertificate
+    $entraToken = Get-MSEntraAccessToken -Certificate $certificate
+
+    $authorization = @{
+        Authorization  = "Bearer $entraToken"
+        'Content-Type' = "application/json"
+        Accept         = "application/json"
+    }
+
+    $actionMessage = "getting Team settings details for Team ID [$groupId]"
+    Write-Information $actionMessage
+
+    $teamsResponse = Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/teams/$groupId" -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
+
+    $memberSettings = $teamsResponse.memberSettings
+    $messagingSettings = $teamsResponse.messagingSettings
+    $funSettings = $teamsResponse.funSettings
+    $guestSettings = $teamsResponse.guestSettings
+
+    $returnObject = @{
+        m_allowCreatePrivateChannels        = $memberSettings.allowCreatePrivateChannels
+        m_allowCreateUpdateChannels         = $memberSettings.allowCreateUpdateChannels
+        m_allowDeleteChannels               = $memberSettings.allowDeleteChannels
+        m_allowAddRemoveApps                = $memberSettings.allowAddRemoveApps
+        m_allowCreateUpdateRemoveTabs       = $memberSettings.allowCreateUpdateRemoveTabs
+        m_allowCreateUpdateRemoveConnectors = $memberSettings.allowCreateUpdateRemoveConnectors
+        g_allowCreateUpdateChannels         = $guestSettings.allowCreateUpdateChannels
+        g_allowDeleteChannels               = $guestSettings.allowDeleteChannels
+        mes_allowUserEditMessages           = $messagingSettings.allowUserEditMessages
+        mes_allowUserDeleteMessages         = $messagingSettings.allowUserDeleteMessages
+        mes_allowOwnerDeleteMessages        = $messagingSettings.allowOwnerDeleteMessages
+        mes_allowTeamMentions               = $messagingSettings.allowTeamMentions
+        mes_allowChannelMentions            = $messagingSettings.allowChannelMentions
+        f_allowGiphy                        = $funSettings.allowGiphy
+        f_giphyContentRating                = if ($funSettings.giphyContentRating -eq 'strict') { $true } else { $false }
+        f_allowStickersAndMemes             = $funSettings.allowStickersAndMemes
+        f_allowCustomMemes                  = $funSettings.allowCustomMemes
+    }
+    Write-Output $returnObject
+}
+catch {
+    $ex = $PSItem
+    if ($($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or
+        $($ex.Exception.GetType().FullName -eq 'System.Net.WebException')) {
+        $errorObj = Resolve-MicrosoftGraphAPIError -ErrorObject $ex
+        $auditMessage = "Error $($actionMessage). Error: $($errorObj.FriendlyMessage)"
+        $warningMessage = "Error at Line [$($errorObj.ScriptLineNumber)]: $($errorObj.Line). Error: $($errorObj.ErrorDetails)"
+    }
+    else {
+        $auditMessage = "Error $($actionMessage). Error: $($ex.Exception.Message)"
+        $warningMessage = "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
+    }
+
+    Write-Warning $warningMessage
+    Write-Error $auditMessage
+}
 
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
@@ -3935,10 +4827,9 @@ catch {
     Write-Error $auditMessage
 }
 
-
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
@@ -4175,10 +5066,9 @@ catch {
     Write-Error $auditMessage
 }
 
-
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
@@ -4415,10 +5305,9 @@ catch {
     Write-Error $auditMessage
 }
 
-
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
@@ -4655,10 +5544,9 @@ catch {
     Write-Error $auditMessage
 }
 
-
 '@ 
 $tmpModel = @'
-[{"key":"mes_allowUserDeleteMessages","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_giphyContentRating","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"f_allowGiphy","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"m_allowCreateUpdateChannels","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"f_allowStickersAndMemes","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowChannelMentions","type":0}]
+[{"key":"m_allowCreateUpdateChannels","type":0},{"key":"g_allowCreateUpdateChannels","type":0},{"key":"f_allowCustomMemes","type":0},{"key":"f_allowGiphy","type":0},{"key":"mes_allowUserDeleteMessages","type":0},{"key":"f_giphyContentRating","type":0},{"key":"mes_allowChannelMentions","type":0},{"key":"m_allowCreateUpdateRemoveConnectors","type":0},{"key":"mes_allowOwnerDeleteMessages","type":0},{"key":"mes_allowTeamMentions","type":0},{"key":"m_allowDeleteChannels","type":0},{"key":"m_allowCreatePrivateChannels","type":0},{"key":"g_allowDeleteChannels","type":0},{"key":"m_allowAddRemoveApps","type":0},{"key":"mes_allowUserEditMessages","type":0},{"key":"m_allowCreateUpdateRemoveTabs","type":0},{"key":"f_allowStickersAndMemes","type":0}]
 '@ 
 $tmpInput = @'
 [{"description":"","translateDescription":false,"inputFieldType":1,"key":"selectedGroup","type":0,"options":0}]
@@ -4673,7 +5561,7 @@ Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_8_Name -DatasourceType 
 
 <# Begin: Dynamic Form "Teams - Edit Team Details" #>
 $tmpSchema = @"
-[{"label":"Select Team","fields":[{"key":"searchValue","templateOptions":{"label":"Search for displayname","required":true},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"teams","templateOptions":{"label":"Select team","required":true,"grid":{"columns":[{"headerName":"Display Name","field":"DisplayName"},{"headerName":"Description","field":"Description"},{"headerName":"Mail Nick Name","field":"MailNickName"},{"headerName":"Mailaddress","field":"Mailaddress"},{"headerName":"Visibility","field":"Visibility"},{"headerName":"Group Id","field":"GroupId"}],"height":300,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_0","input":{"propertyInputs":[{"propertyName":"searchValue","otherFieldValue":{"otherFieldKey":"searchValue"}}]}},"useFilter":true,"useDefault":false,"allowCsvDownload":true},"type":"grid","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":true}]},{"label":"Edit Team Details","fields":[{"key":"AllowCreatePrivateChannels","templateOptions":{"label":"AllowCreatePrivateChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"m_allowCreatePrivateChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_1","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowCreateUpdateChannels","templateOptions":{"label":"AllowCreateUpdateChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"m_allowCreateUpdateChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_2","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowDeleteChannels","templateOptions":{"label":"AllowDeleteChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"m_allowDeleteChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_3","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowAddRemoveApps","templateOptions":{"label":"AllowAddRemoveApps","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"m_allowAddRemoveApps","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_4","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowCreateUpdateRemoveTabs","templateOptions":{"label":"AllowCreateUpdateRemoveTabs","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"m_allowCreateUpdateRemoveTabs","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_5","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowCreateUpdateRemoveConnectors","templateOptions":{"label":"AllowCreateUpdateRemoveConnectors","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"m_allowCreateUpdateRemoveConnectors","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_6","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowGuestCreateUpdateChannels","templateOptions":{"label":"AllowGuestCreateUpdateChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"g_allowCreateUpdateChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_7","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowGuestDeleteChannels","templateOptions":{"label":"AllowGuestDeleteChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"g_allowDeleteChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_8","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowUserEditMessages","templateOptions":{"label":"AllowUserEditMessages","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"mes_allowUserEditMessages","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_9","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowUserDeleteMessages","templateOptions":{"label":"AllowUserDeleteMessages","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"mes_allowUserDeleteMessages","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_10","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowOwnerDeleteMessages","templateOptions":{"label":"AllowOwnerDeleteMessages","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"mes_allowOwnerDeleteMessages","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_11","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowTeamMentions","templateOptions":{"label":"AllowTeamMentions","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"mes_allowTeamMentions","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_12","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowChannelMentions","templateOptions":{"label":"AllowChannelMentions","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"mes_allowChannelMentions","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_13","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowGiphy","templateOptions":{"label":"AllowGiphy","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"f_allowGiphy","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_14","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"GiphyContentRating","templateOptions":{"label":"GiphyContentRating","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"f_giphyContentRating","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_15","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowStickersAndMemes","templateOptions":{"label":"AllowStickersAndMemes","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"f_allowStickersAndMemes","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_16","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowCustomMemes","templateOptions":{"label":"AllowCustomMemes","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"f_allowCustomMemes","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_17","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}]}]
+[{"label":"Select Team","fields":[{"key":"searchValue","templateOptions":{"label":"Search for displayname","required":true},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"teams","templateOptions":{"label":"Select team","required":true,"grid":{"columns":[{"headerName":"Display Name","field":"DisplayName"},{"headerName":"Description","field":"Description"},{"headerName":"Mail Nick Name","field":"MailNickName"},{"headerName":"Mailaddress","field":"Mailaddress"},{"headerName":"Visibility","field":"Visibility"},{"headerName":"Group Id","field":"GroupId"}],"height":300,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_0","input":{"propertyInputs":[{"propertyName":"searchValue","otherFieldValue":{"otherFieldKey":"searchValue"}}]}},"useFilter":true,"useDefault":false,"allowCsvDownload":true},"type":"grid","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":true}]},{"label":"Edit Team Details","fields":[{"key":"teamDisplayName","templateOptions":{"label":"Displayname","useDependOn":true,"dependOn":"teams","dependOnProperty":"DisplayName","required":true},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"teamDescription","templateOptions":{"label":"Description","required":true,"useDependOn":true,"dependOn":"teams","dependOnProperty":"Description"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"teamVisibility","templateOptions":{"label":"Security","useObjects":true,"useDataSource":true,"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_1","input":{"propertyInputs":[{"propertyName":"selectedgroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"valueField":"value","textField":"label","useDefault":true,"defaultSelectorProperty":"selected"},"type":"radio","summaryVisibility":"Show","textOrLabel":"label","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"teamOwners","templateOptions":{"label":"Owner(s)","required":false,"filterable":true,"useDataSource":true,"dualList":{"options":[{"guid":"75ea2890-88f8-4851-b202-626123054e14","name":"Apple"},{"guid":"0607270d-83e2-4574-9894-0b70011b663f","name":"Pear"},{"guid":"1ef6fe01-3095-4614-a6db-7c8cd416ae3b","name":"Orange"}],"optionKeyProperty":"id","optionDisplayProperty":"userPrincipalName","labelLeft":"All users","labelRight":"Owner(s)"},"destinationDataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_2","input":{"propertyInputs":[{"propertyName":"selectedgroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_3","input":{"propertyInputs":[]}}},"type":"duallist","summaryVisibility":"Show","sourceDataSourceIdentifierSuffix":"source-datasource","destinationDataSourceIdentifierSuffix":"destination-datasource","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"tiValidation","templateOptions":{"label":"Validation","readonly":true,"pattern":"^Valid:\\s*.*","required":true,"minLength":1,"useDataSource":true,"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_4","input":{"propertyInputs":[{"propertyName":"displayname","otherFieldValue":{"otherFieldKey":"teamDisplayName"}},{"propertyName":"selectedgroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"displayField":"output"},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}]},{"label":"Edit Team Settings","fields":[{"key":"AllowCreatePrivateChannels","templateOptions":{"label":"AllowCreatePrivateChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"m_allowCreatePrivateChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_5","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowCreateUpdateChannels","templateOptions":{"label":"AllowCreateUpdateChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"m_allowCreateUpdateChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_6","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowDeleteChannels","templateOptions":{"label":"AllowDeleteChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"m_allowDeleteChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_7","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowAddRemoveApps","templateOptions":{"label":"AllowAddRemoveApps","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"m_allowAddRemoveApps","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_8","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowCreateUpdateRemoveTabs","templateOptions":{"label":"AllowCreateUpdateRemoveTabs","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"m_allowCreateUpdateRemoveTabs","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_9","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowCreateUpdateRemoveConnectors","templateOptions":{"label":"AllowCreateUpdateRemoveConnectors","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"m_allowCreateUpdateRemoveConnectors","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_10","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowGuestCreateUpdateChannels","templateOptions":{"label":"AllowGuestCreateUpdateChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"g_allowCreateUpdateChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_11","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowGuestDeleteChannels","templateOptions":{"label":"AllowGuestDeleteChannels","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"g_allowDeleteChannels","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_12","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowUserEditMessages","templateOptions":{"label":"AllowUserEditMessages","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"mes_allowUserEditMessages","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_13","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowUserDeleteMessages","templateOptions":{"label":"AllowUserDeleteMessages","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"mes_allowUserDeleteMessages","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_14","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowOwnerDeleteMessages","templateOptions":{"label":"AllowOwnerDeleteMessages","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"mes_allowOwnerDeleteMessages","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_15","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowTeamMentions","templateOptions":{"label":"AllowTeamMentions","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"mes_allowTeamMentions","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_16","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowChannelMentions","templateOptions":{"label":"AllowChannelMentions","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"mes_allowChannelMentions","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_17","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowGiphy","templateOptions":{"label":"AllowGiphy","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"f_allowGiphy","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_18","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"GiphyContentRating","templateOptions":{"label":"GiphyContentRating","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"f_giphyContentRating","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_19","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowStickersAndMemes","templateOptions":{"label":"AllowStickersAndMemes","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"f_allowStickersAndMemes","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_20","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"AllowCustomMemes","templateOptions":{"label":"AllowCustomMemes","useSwitch":true,"checkboxLabel":"Allow","useDataSource":true,"displayField":"f_allowCustomMemes","dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_21","input":{"propertyInputs":[{"propertyName":"selectedGroup","otherFieldValue":{"otherFieldKey":"teams"}}]}},"useFilter":false},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}]}]
 "@ 
 
 $dynamicFormGuid = [PSCustomObject]@{} 
@@ -4738,7 +5626,7 @@ $delegatedFormName = @'
 Teams - Edit Team Details
 '@
 $tmpTask = @'
-{"name":"Teams - Edit Team Details","script":"#######################################################################\n# Template: HelloID SA Delegated form task\n# Name: Teams - Edit Team Details\n# Date: 03-04-2026\n#######################################################################\n\n# For basic information about delegated form tasks see:\n# https://docs.helloid.com/en/service-automation/delegated-forms/delegated-form-tasks.html\n\n# Service automation variables:\n# https://docs.helloid.com/en/service-automation/service-automation-variables.html\n\n#region init\n\n$VerbosePreference = \"SilentlyContinue\"\n$InformationPreference = \"Continue\"\n$WarningPreference = \"Continue\"\n\n# global variables (Automation --\u003e Variable libary):\n# Outcommented as these are set from Global Variables\n# $EntraIdTenantId = \"\"\n# $EntraIdAppId = \"\"\n# $EntraIdCertificateBase64String = \"\"\n# $EntraIdCertificatePassword = \"\"\n\n# variables configured in form\n$groupId = $form.teams.GroupId\n$displayName = $form.teams.DisplayName\n\n#endregion init\n\n#region functions\nfunction Resolve-MicrosoftGraphAPIError {\n    [CmdletBinding()]\n    param (\n        [Parameter(Mandatory)]\n        [object]\n        $ErrorObject\n    )\n    process {\n        $httpErrorObj = [PSCustomObject]@{\n            ScriptLineNumber = $ErrorObject.InvocationInfo.ScriptLineNumber\n            Line             = $ErrorObject.InvocationInfo.Line\n            ErrorDetails     = $ErrorObject.Exception.Message\n            FriendlyMessage  = $ErrorObject.Exception.Message\n        }\n        if (-not [string]::IsNullOrEmpty($ErrorObject.ErrorDetails.Message)) {\n            $httpErrorObj.ErrorDetails = $ErrorObject.ErrorDetails.Message\n        }\n        elseif ($ErrorObject.Exception.GetType().FullName -eq \u0027System.Net.WebException\u0027) {\n            if ($null -ne $ErrorObject.Exception.Response) {\n                $streamReaderResponse = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()\n                if (-not [string]::IsNullOrEmpty($streamReaderResponse)) {\n                    $httpErrorObj.ErrorDetails = $streamReaderResponse\n                }\n            }\n        }\n        try {\n            $errorDetailsObject = ($httpErrorObj.ErrorDetails | ConvertFrom-Json -ErrorAction Stop)\n            if ($errorDetailsObject.error_description) {\n                $httpErrorObj.FriendlyMessage = $errorDetailsObject.error_description\n            }\n            elseif ($errorDetailsObject.error.message) {\n                $httpErrorObj.FriendlyMessage = \"$($errorDetailsObject.error.code): $($errorDetailsObject.error.message)\"\n            }\n            elseif ($errorDetailsObject.error.details.message) {\n                $httpErrorObj.FriendlyMessage = \"$($errorDetailsObject.error.details.code): $($errorDetailsObject.error.details.message)\"\n            }\n            else {\n                $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails\n            }\n        }\n        catch {\n            $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails\n        }\n        Write-Output $httpErrorObj\n    }\n}\n\nfunction Get-MSEntraAccessToken {\n    [CmdletBinding()]\n    param(\n        [Parameter(Mandatory)]\n        $Certificate\n    )\n    try {\n        $derBytes = $Certificate.RawData\n        $sha256 = [System.Security.Cryptography.SHA256]::Create()\n        $hashBytes = $sha256.ComputeHash($derBytes)\n        $base64Thumbprint = [System.Convert]::ToBase64String($hashBytes).Replace(\u0027+\u0027, \u0027-\u0027).Replace(\u0027/\u0027, \u0027_\u0027).Replace(\u0027=\u0027, \u0027\u0027)\n\n        $header = @{\n            \u0027alg\u0027      = \u0027RS256\u0027\n            \u0027typ\u0027      = \u0027JWT\u0027\n            \u0027x5t#S256\u0027 = $base64Thumbprint\n        } | ConvertTo-Json\n        $base64Header = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($header))\n\n        $currentUnixTimestamp = [math]::Round(((Get-Date).ToUniversalTime() - ([datetime]\u00271970-01-01T00:00:00Z\u0027).ToUniversalTime()).TotalSeconds)\n\n        $payload = [Ordered]@{\n            \u0027iss\u0027 = \"$entraidappid\"\n            \u0027sub\u0027 = \"$entraidappid\"\n            \u0027aud\u0027 = \"https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token\"\n            \u0027exp\u0027 = ($currentUnixTimestamp + 3600)\n            \u0027nbf\u0027 = ($currentUnixTimestamp - 300)\n            \u0027iat\u0027 = $currentUnixTimestamp\n            \u0027jti\u0027 = [Guid]::NewGuid().ToString()\n        } | ConvertTo-Json\n        $base64Payload = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payload)).Replace(\u0027+\u0027, \u0027-\u0027).Replace(\u0027/\u0027, \u0027_\u0027).Replace(\u0027=\u0027, \u0027\u0027)\n\n        $rsaPrivate = $Certificate.PrivateKey\n        $rsa = [System.Security.Cryptography.RSACryptoServiceProvider]::new()\n        $rsa.ImportParameters($rsaPrivate.ExportParameters($true))\n\n        $signatureInput = \"$base64Header.$base64Payload\"\n        $signature = $rsa.SignData([Text.Encoding]::UTF8.GetBytes($signatureInput), \u0027SHA256\u0027)\n        $base64Signature = [System.Convert]::ToBase64String($signature).Replace(\u0027+\u0027, \u0027-\u0027).Replace(\u0027/\u0027, \u0027_\u0027).Replace(\u0027=\u0027, \u0027\u0027)\n\n        if (-not $Certificate.HasPrivateKey -or -not $Certificate.PrivateKey) {\n            throw \"The certificate does not have a private key.\"\n        }\n\n        $jwtToken = \"$($base64Header).$($base64Payload).$($base64Signature)\"\n\n        $createEntraAccessTokenBody = @{\n            grant_type            = \u0027client_credentials\u0027\n            client_id             = $entraidappid\n            client_assertion_type = \u0027urn:ietf:params:oauth:client-assertion-type:jwt-bearer\u0027\n            client_assertion      = $jwtToken\n            resource              = \u0027https://graph.microsoft.com\u0027\n        }\n\n        $createEntraAccessTokenSplatParams = @{\n            Uri         = \"https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token\"\n            Body        = $createEntraAccessTokenBody\n            Method      = \u0027POST\u0027\n            ContentType = \u0027application/x-www-form-urlencoded\u0027\n            Verbose     = $false\n            ErrorAction = \u0027Stop\u0027\n        }\n\n        $createEntraAccessTokenResponse = Invoke-RestMethod @createEntraAccessTokenSplatParams\n        Write-Output $createEntraAccessTokenResponse.access_token\n    }\n    catch {\n        $PSCmdlet.ThrowTerminatingError($_)\n    }\n}\n\nfunction Get-MSEntraCertificate {\n    [CmdletBinding()]\n    param()\n    try {\n        $rawCertificate = [system.convert]::FromBase64String($EntraIdCertificateBase64String)\n        $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($rawCertificate, $EntraIdCertificatePassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)\n        Write-Output $certificate\n    }\n    catch {\n        $PSCmdlet.ThrowTerminatingError($_)\n    }\n}\n\n#endregion functions\n\ntry {\n    if ($form.giphyContentRating -eq \u0027true\u0027) {\n        $giphyContentRating = \"Strict\"\n    }\n    else {\n        $giphyContentRating = \"Moderate\"\n    }\n\n    $actionMessage = \"authenticating to Microsoft Graph\"\n    Write-Verbose \u0027connecting to MS-Entra\u0027\n    $certificate = Get-MSEntraCertificate\n    $entraToken = Get-MSEntraAccessToken -Certificate $certificate\n\n    $authorization = @{\n        Authorization  = \"Bearer $entraToken\"\n        \u0027Content-Type\u0027 = \"application/json\"\n        Accept         = \"application/json\"\n    }\n\n    $actionMessage = \"updating team settings for Team [$displayName] with ID [$groupId]\"\n    $teamBody = @{\n        memberSettings    = @{\n            allowCreatePrivateChannels        = [System.Convert]::ToBoolean($form.AllowCreatePrivateChannels)\n            allowCreateUpdateChannels         = [System.Convert]::ToBoolean($form.AllowCreateUpdateChannels)\n            allowDeleteChannels               = [System.Convert]::ToBoolean($form.AllowDeleteChannels)\n            allowAddRemoveApps                = [System.Convert]::ToBoolean($form.AllowAddRemoveApps)\n            allowCreateUpdateRemoveTabs       = [System.Convert]::ToBoolean($form.AllowCreateUpdateRemoveTabs)\n            allowCreateUpdateRemoveConnectors = [System.Convert]::ToBoolean($form.AllowCreateUpdateRemoveConnectors)\n        }\n        guestSettings     = @{\n            allowCreateUpdateChannels = [System.Convert]::ToBoolean($form.AllowGuestCreateUpdateChannels)\n            allowDeleteChannels       = [System.Convert]::ToBoolean($form.AllowGuestDeleteChannels)\n        }\n        messagingSettings = @{\n            allowUserEditMessages    = [System.Convert]::ToBoolean($form.AllowUserEditMessages)\n            allowUserDeleteMessages  = [System.Convert]::ToBoolean($form.AllowUserDeleteMessages)\n            allowOwnerDeleteMessages = [System.Convert]::ToBoolean($form.AllowOwnerDeleteMessages)\n            allowTeamMentions        = [System.Convert]::ToBoolean($form.AllowTeamMentions)\n            allowChannelMentions     = [System.Convert]::ToBoolean($form.AllowChannelMentions)\n        }\n        funSettings       = @{\n            allowGiphy            = [System.Convert]::ToBoolean($form.AllowGiphy)\n            giphyContentRating    = $giphyContentRating\n            allowStickersAndMemes = [System.Convert]::ToBoolean($form.AllowStickersAndMemes)\n            allowCustomMemes      = [System.Convert]::ToBoolean($form.AllowCustomMemes)\n        }\n    }\n\n    $updateTeamSplatParams = @{\n        Uri         = \"https://graph.microsoft.com/v1.0/teams/$groupId\"\n        Body        = ($teamBody | ConvertTo-Json -Depth 10)\n        Headers     = $authorization\n        Method      = \u0027PATCH\u0027\n        ContentType = \u0027application/json\u0027\n        Verbose     = $false\n        ErrorAction = \u0027Stop\u0027\n    }\n    $null = Invoke-RestMethod @updateTeamSplatParams\n\n    Write-Information \"Successfully updated Team [$displayName] with ID [$groupId].\"\n    $Log = @{\n        Action            = \"UpdateResource\"\n        System            = \"MicrosoftTeams\"\n        Message           = \"Successfully updated Team [$displayName] with ID [$groupId].\"\n        IsError           = $false\n        TargetDisplayName = $displayName\n        TargetIdentifier  = $groupId\n    }\n    Write-Information -Tags \"Audit\" -MessageData $log\n}\ncatch {\n    $ex = $PSItem\n    if ($($ex.Exception.GetType().FullName -eq \u0027Microsoft.PowerShell.Commands.HttpResponseException\u0027) -or\n        $($ex.Exception.GetType().FullName -eq \u0027System.Net.WebException\u0027)) {\n        $errorObj = Resolve-MicrosoftGraphAPIError -ErrorObject $ex\n        $auditMessage = \"Error $($actionMessage). Error: $($errorObj.FriendlyMessage)\"\n        $warningMessage = \"Error at Line [$($errorObj.ScriptLineNumber)]: $($errorObj.Line). Error: $($errorObj.ErrorDetails)\"\n    }\n    else {\n        $auditMessage = \"Error $($actionMessage). Error: $($ex.Exception.Message)\"\n        $warningMessage = \"Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)\"\n    }\n\n    $Log = @{\n        Action            = \"UpdateResource\"\n        System            = \"MicrosoftTeams\"\n        Message           = $auditMessage\n        IsError           = $true\n        TargetDisplayName = $displayName\n        TargetIdentifier  = $groupId\n    }\n    Write-Information -Tags \"Audit\" -MessageData $log\n    Write-Warning $warningMessage\n    Write-Error $auditMessage\n}\n\n","runInCloud":true}
+{"name":"Teams - Edit Team Details","script":"#######################################################################\n# Template: HelloID SA Delegated form task\n# Name: Teams - Edit Team Details\n# Date: 03-04-2026\n#######################################################################\n\n# For basic information about delegated form tasks see:\n# https://docs.helloid.com/en/service-automation/delegated-forms/delegated-form-tasks.html\n\n# Service automation variables:\n# https://docs.helloid.com/en/service-automation/service-automation-variables.html\n\n#region init\n\n$VerbosePreference = \"SilentlyContinue\"\n$InformationPreference = \"Continue\"\n$WarningPreference = \"Continue\"\n\n# global variables (Automation --\u003e Variable libary):\n# Outcommented as these are set from Global Variables\n# $EntraIdTenantId = \"\"\n# $EntraIdAppId = \"\"\n# $EntraIdCertificateBase64String = \"\"\n# $EntraIdCertificatePassword = \"\"\n\n# variables configured in form\n$groupId = $form.teams.GroupId\n$currentDisplayName = $form.teams.DisplayName\n$displayName = $form.teamDisplayName\n$description = $form.teamDescription\n$visibility = $form.teamVisibility.value\n$ownersToAdd = @($form.teamOwners.leftToRight)\n$ownersToRemove = @($form.teamOwners.rightToLeft)\n\n#endregion init\n\n#region functions\nfunction Resolve-MicrosoftGraphAPIError {\n    [CmdletBinding()]\n    param (\n        [Parameter(Mandatory)]\n        [object]\n        $ErrorObject\n    )\n    process {\n        $httpErrorObj = [PSCustomObject]@{\n            ScriptLineNumber = $ErrorObject.InvocationInfo.ScriptLineNumber\n            Line             = $ErrorObject.InvocationInfo.Line\n            ErrorDetails     = $ErrorObject.Exception.Message\n            FriendlyMessage  = $ErrorObject.Exception.Message\n        }\n        if (-not [string]::IsNullOrEmpty($ErrorObject.ErrorDetails.Message)) {\n            $httpErrorObj.ErrorDetails = $ErrorObject.ErrorDetails.Message\n        }\n        elseif ($ErrorObject.Exception.GetType().FullName -eq \u0027System.Net.WebException\u0027) {\n            if ($null -ne $ErrorObject.Exception.Response) {\n                $streamReaderResponse = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()\n                if (-not [string]::IsNullOrEmpty($streamReaderResponse)) {\n                    $httpErrorObj.ErrorDetails = $streamReaderResponse\n                }\n            }\n        }\n        try {\n            $errorDetailsObject = ($httpErrorObj.ErrorDetails | ConvertFrom-Json -ErrorAction Stop)\n            if ($errorDetailsObject.error_description) {\n                $httpErrorObj.FriendlyMessage = $errorDetailsObject.error_description\n            }\n            elseif ($errorDetailsObject.error.message) {\n                $httpErrorObj.FriendlyMessage = \"$($errorDetailsObject.error.code): $($errorDetailsObject.error.message)\"\n            }\n            elseif ($errorDetailsObject.error.details.message) {\n                $httpErrorObj.FriendlyMessage = \"$($errorDetailsObject.error.details.code): $($errorDetailsObject.error.details.message)\"\n            }\n            else {\n                $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails\n            }\n        }\n        catch {\n            $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails\n        }\n        Write-Output $httpErrorObj\n    }\n}\n\nfunction Get-MSEntraAccessToken {\n    [CmdletBinding()]\n    param(\n        [Parameter(Mandatory)]\n        $Certificate\n    )\n    try {\n        $derBytes = $Certificate.RawData\n        $sha256 = [System.Security.Cryptography.SHA256]::Create()\n        $hashBytes = $sha256.ComputeHash($derBytes)\n        $base64Thumbprint = [System.Convert]::ToBase64String($hashBytes).Replace(\u0027+\u0027, \u0027-\u0027).Replace(\u0027/\u0027, \u0027_\u0027).Replace(\u0027=\u0027, \u0027\u0027)\n\n        $header = @{\n            \u0027alg\u0027      = \u0027RS256\u0027\n            \u0027typ\u0027      = \u0027JWT\u0027\n            \u0027x5t#S256\u0027 = $base64Thumbprint\n        } | ConvertTo-Json\n        $base64Header = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($header))\n\n        $currentUnixTimestamp = [math]::Round(((Get-Date).ToUniversalTime() - ([datetime]\u00271970-01-01T00:00:00Z\u0027).ToUniversalTime()).TotalSeconds)\n\n        $payload = [Ordered]@{\n            \u0027iss\u0027 = \"$entraidappid\"\n            \u0027sub\u0027 = \"$entraidappid\"\n            \u0027aud\u0027 = \"https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token\"\n            \u0027exp\u0027 = ($currentUnixTimestamp + 3600)\n            \u0027nbf\u0027 = ($currentUnixTimestamp - 300)\n            \u0027iat\u0027 = $currentUnixTimestamp\n            \u0027jti\u0027 = [Guid]::NewGuid().ToString()\n        } | ConvertTo-Json\n        $base64Payload = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($payload)).Replace(\u0027+\u0027, \u0027-\u0027).Replace(\u0027/\u0027, \u0027_\u0027).Replace(\u0027=\u0027, \u0027\u0027)\n\n        $rsaPrivate = $Certificate.PrivateKey\n        $rsa = [System.Security.Cryptography.RSACryptoServiceProvider]::new()\n        $rsa.ImportParameters($rsaPrivate.ExportParameters($true))\n\n        $signatureInput = \"$base64Header.$base64Payload\"\n        $signature = $rsa.SignData([Text.Encoding]::UTF8.GetBytes($signatureInput), \u0027SHA256\u0027)\n        $base64Signature = [System.Convert]::ToBase64String($signature).Replace(\u0027+\u0027, \u0027-\u0027).Replace(\u0027/\u0027, \u0027_\u0027).Replace(\u0027=\u0027, \u0027\u0027)\n\n        if (-not $Certificate.HasPrivateKey -or -not $Certificate.PrivateKey) {\n            throw \"The certificate does not have a private key.\"\n        }\n\n        $jwtToken = \"$($base64Header).$($base64Payload).$($base64Signature)\"\n\n        $createEntraAccessTokenBody = @{\n            grant_type            = \u0027client_credentials\u0027\n            client_id             = $entraidappid\n            client_assertion_type = \u0027urn:ietf:params:oauth:client-assertion-type:jwt-bearer\u0027\n            client_assertion      = $jwtToken\n            resource              = \u0027https://graph.microsoft.com\u0027\n        }\n\n        $createEntraAccessTokenSplatParams = @{\n            Uri         = \"https://login.microsoftonline.com/$EntraIdTenantId/oauth2/token\"\n            Body        = $createEntraAccessTokenBody\n            Method      = \u0027POST\u0027\n            ContentType = \u0027application/x-www-form-urlencoded\u0027\n            Verbose     = $false\n            ErrorAction = \u0027Stop\u0027\n        }\n\n        $createEntraAccessTokenResponse = Invoke-RestMethod @createEntraAccessTokenSplatParams\n        Write-Output $createEntraAccessTokenResponse.access_token\n    }\n    catch {\n        $PSCmdlet.ThrowTerminatingError($_)\n    }\n}\n\nfunction Get-MSEntraCertificate {\n    [CmdletBinding()]\n    param()\n    try {\n        $rawCertificate = [system.convert]::FromBase64String($EntraIdCertificateBase64String)\n        $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($rawCertificate, $EntraIdCertificatePassword, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)\n        Write-Output $certificate\n    }\n    catch {\n        $PSCmdlet.ThrowTerminatingError($_)\n    }\n}\n\n#endregion functions\n\ntry {\n    if ($form.giphyContentRating -eq \u0027true\u0027) {\n        $giphyContentRating = \"Strict\"\n    }\n    else {\n        $giphyContentRating = \"Moderate\"\n    }\n\n    $actionMessage = \"authenticating to Microsoft Graph\"\n    Write-Verbose \u0027connecting to MS-Entra\u0027\n    $certificate = Get-MSEntraCertificate\n    $entraToken = Get-MSEntraAccessToken -Certificate $certificate\n\n    $authorization = @{\n        Authorization  = \"Bearer $entraToken\"\n        \u0027Content-Type\u0027 = \"application/json\"\n        Accept         = \"application/json\"\n    }\n\n    $actionMessage = \"updating team metadata for Team [$currentDisplayName] with ID [$groupId]\"\n    $groupBody = @{\n        displayName = $displayName\n        description = $description\n        visibility  = $visibility\n    }\n    Write-Information \"Updating team metadata for Team [$currentDisplayName] with ID [$groupId]. New display name: [$displayName], description: [$description], visibility: [$visibility].\"\n\n    $updateGroupSplatParams = @{\n        Uri         = \"https://graph.microsoft.com/v1.0/groups/$groupId\"\n        Body        = ($groupBody | ConvertTo-Json -Depth 10)\n        Headers     = $authorization\n        Method      = \u0027PATCH\u0027\n        ContentType = \u0027application/json\u0027\n        Verbose     = $false\n        ErrorAction = \u0027Stop\u0027\n    }\n    $null = Invoke-RestMethod @updateGroupSplatParams\n\n    $actionMessage = \"updating team settings for Team [$displayName] with ID [$groupId]\"\n    $teamBody = @{\n        memberSettings    = @{\n            allowCreatePrivateChannels        = [System.Convert]::ToBoolean($form.AllowCreatePrivateChannels)\n            allowCreateUpdateChannels         = [System.Convert]::ToBoolean($form.AllowCreateUpdateChannels)\n            allowDeleteChannels               = [System.Convert]::ToBoolean($form.AllowDeleteChannels)\n            allowAddRemoveApps                = [System.Convert]::ToBoolean($form.AllowAddRemoveApps)\n            allowCreateUpdateRemoveTabs       = [System.Convert]::ToBoolean($form.AllowCreateUpdateRemoveTabs)\n            allowCreateUpdateRemoveConnectors = [System.Convert]::ToBoolean($form.AllowCreateUpdateRemoveConnectors)\n        }\n        guestSettings     = @{\n            allowCreateUpdateChannels = [System.Convert]::ToBoolean($form.AllowGuestCreateUpdateChannels)\n            allowDeleteChannels       = [System.Convert]::ToBoolean($form.AllowGuestDeleteChannels)\n        }\n        messagingSettings = @{\n            allowUserEditMessages    = [System.Convert]::ToBoolean($form.AllowUserEditMessages)\n            allowUserDeleteMessages  = [System.Convert]::ToBoolean($form.AllowUserDeleteMessages)\n            allowOwnerDeleteMessages = [System.Convert]::ToBoolean($form.AllowOwnerDeleteMessages)\n            allowTeamMentions        = [System.Convert]::ToBoolean($form.AllowTeamMentions)\n            allowChannelMentions     = [System.Convert]::ToBoolean($form.AllowChannelMentions)\n        }\n        funSettings       = @{\n            allowGiphy            = [System.Convert]::ToBoolean($form.AllowGiphy)\n            giphyContentRating    = $giphyContentRating\n            allowStickersAndMemes = [System.Convert]::ToBoolean($form.AllowStickersAndMemes)\n            allowCustomMemes      = [System.Convert]::ToBoolean($form.AllowCustomMemes)\n        }\n    }\n\n    $updateTeamSplatParams = @{\n        Uri         = \"https://graph.microsoft.com/v1.0/teams/$groupId\"\n        Body        = ($teamBody | ConvertTo-Json -Depth 10)\n        Headers     = $authorization\n        Method      = \u0027PATCH\u0027\n        ContentType = \u0027application/json\u0027\n        Verbose     = $false\n        ErrorAction = \u0027Stop\u0027\n    }\n    $null = Invoke-RestMethod @updateTeamSplatParams\n\n    if ($ownersToAdd.Count -gt 0) {\n        $ownersToAddDisplayNames = $ownersToAdd | Select-Object -ExpandProperty userPrincipalName\n        $ownerIdsToAdd = $ownersToAdd | Select-Object -ExpandProperty id\n\n        $actionMessage = \"adding team owners for Team [$displayName] with ID [$groupId]\"\n        Write-Information \"Adding team owners for Team [$displayName] with ID [$groupId]. Owners to add (UserPrincipalName): $ownersToAddDisplayNames.\"\n\n        foreach ($ownerId in $ownerIdsToAdd) {\n            Write-Information \"Adding user with ID [$ownerId] as owner to Team [$displayName] with ID [$groupId].\"\n            $ownerRefBody = @{\n                \u0027@odata.id\u0027 = \"https://graph.microsoft.com/v1.0/users/$ownerId\"\n            }\n            $addOwnerSplatParams = @{\n                Uri         = \"https://graph.microsoft.com/v1.0/groups/$groupId/owners/`$ref\"\n                Body        = ($ownerRefBody | ConvertTo-Json -Depth 5)\n                Headers     = $authorization\n                Method      = \u0027POST\u0027\n                ContentType = \u0027application/json\u0027\n                Verbose     = $false\n                ErrorAction = \u0027Stop\u0027\n            }\n            $null = Invoke-RestMethod @addOwnerSplatParams\n        }\n    }\n    if ($ownersToRemove.Count -gt 0) {\n        $ownersToRemoveDisplayNames = $ownersToRemove | Select-Object -ExpandProperty userPrincipalName\n        $ownerIdsToRemove = $ownersToRemove | Select-Object -ExpandProperty id\n\n        $actionMessage = \"removing team owners for Team [$displayName] with ID [$groupId]\"\n        Write-Information \"Removing team owners for Team [$displayName] with ID [$groupId]. Owners to remove (UserPrincipalName): $ownersToRemoveDisplayNames.\"\n\n        foreach ($ownerId in $ownerIdsToRemove) {\n            Write-Information \"Removing user with ID [$ownerId] as owner from Team [$displayName] with ID [$groupId].\"\n            $removeOwnerSplatParams = @{\n                Uri         = \"https://graph.microsoft.com/v1.0/groups/$groupId/owners/$ownerId/`$ref\"\n                Headers     = $authorization\n                Method      = \u0027DELETE\u0027\n                ContentType = \u0027application/json\u0027\n                Verbose     = $false\n                ErrorAction = \u0027Stop\u0027\n            }\n            $null = Invoke-RestMethod @removeOwnerSplatParams\n        }\n    }\n\n    Write-Information \"Successfully updated Team [$displayName] with ID [$groupId].\"\n    $Log = @{\n        Action            = \"UpdateResource\"\n        System            = \"MicrosoftTeams\"\n        Message           = \"Successfully updated Team [$displayName] with ID [$groupId].\"\n        IsError           = $false\n        TargetDisplayName = $displayName\n        TargetIdentifier  = $groupId\n    }\n    Write-Information -Tags \"Audit\" -MessageData $log\n}\ncatch {\n    $ex = $PSItem\n    if ($($ex.Exception.GetType().FullName -eq \u0027Microsoft.PowerShell.Commands.HttpResponseException\u0027) -or\n        $($ex.Exception.GetType().FullName -eq \u0027System.Net.WebException\u0027)) {\n        $errorObj = Resolve-MicrosoftGraphAPIError -ErrorObject $ex\n        $auditMessage = \"Error $($actionMessage). Error: $($errorObj.FriendlyMessage)\"\n        $warningMessage = \"Error at Line [$($errorObj.ScriptLineNumber)]: $($errorObj.Line). Error: $($errorObj.ErrorDetails)\"\n    }\n    else {\n        $auditMessage = \"Error $($actionMessage). Error: $($ex.Exception.Message)\"\n        $warningMessage = \"Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)\"\n    }\n\n    $Log = @{\n        Action            = \"UpdateResource\"\n        System            = \"MicrosoftTeams\"\n        Message           = $auditMessage\n        IsError           = $true\n        TargetDisplayName = $displayName\n        TargetIdentifier  = $groupId\n    }\n    Write-Information -Tags \"Audit\" -MessageData $log\n    Write-Warning $warningMessage\n    Write-Error $auditMessage\n}\n","runInCloud":true}
 '@ 
 
 Invoke-HelloIDDelegatedForm -DelegatedFormName $delegatedFormName -DynamicFormGuid $dynamicFormGuid -AccessGroups $delegatedFormAccessGroupGuids -Categories $delegatedFormCategoryGuids -UseFaIcon "True" -FaIcon "fa fa-pencil-square" -task $tmpTask -returnObject ([Ref]$delegatedFormRef) 

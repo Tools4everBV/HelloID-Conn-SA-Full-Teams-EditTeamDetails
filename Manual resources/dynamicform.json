@@ -569,35 +569,6 @@
                            "requiresTemplateOptions":  true,
                            "requiresKey":  true,
                            "requiresDataSource":  false
-                       },
-                       {
-                           "key":  "ShowInTeamsSearchAndSuggestions",
-                           "templateOptions":  {
-                                                   "label":  "ShowInTeamsSearchAndSuggestions",
-                                                   "useSwitch":  true,
-                                                   "checkboxLabel":  "Allow",
-                                                   "useDataSource":  true,
-                                                   "displayField":  "b_showInTeamsSearchAndSuggestions",
-                                                   "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_18",
-                                                                            "input":  {
-                                                                                          "propertyInputs":  [
-                                                                                                                 {
-                                                                                                                     "propertyName":  "selectedGroup",
-                                                                                                                     "otherFieldValue":  {
-                                                                                                                                             "otherFieldKey":  "teams"
-                                                                                                                                         }
-                                                                                                                 }
-                                                                                                             ]
-                                                                                      }
-                                                                        },
-                                                   "useFilter":  false
-                                               },
-                           "type":  "boolean",
-                           "summaryVisibility":  "Show",
-                           "requiresTemplateOptions":  true,
-                           "requiresKey":  true,
-                           "requiresDataSource":  false
                        }
                    ]
     }

@@ -164,7 +164,7 @@ function Get-MSEntraCertificate {
 #endregion functions
 
 try {
-    if ($form.giphyContentRating -in @($true, "true", "Strict")) {
+    if ($form.giphyContentRating -eq 'true') {
         $giphyContentRating = "Strict"
     }
     else {
@@ -185,29 +185,29 @@ try {
     $actionMessage = "updating team settings for Team [$displayName] with ID [$groupId]"
     $teamBody = @{
         memberSettings    = @{
-            allowCreatePrivateChannels        = [bool]$form.AllowCreatePrivateChannels
-            allowCreateUpdateChannels         = [bool]$form.AllowCreateUpdateChannels
-            allowDeleteChannels               = [bool]$form.AllowDeleteChannels
-            allowAddRemoveApps                = [bool]$form.AllowAddRemoveApps
-            allowCreateUpdateRemoveTabs       = [bool]$form.AllowCreateUpdateRemoveTabs
-            allowCreateUpdateRemoveConnectors = [bool]$form.AllowCreateUpdateRemoveConnectors
+            allowCreatePrivateChannels        = [System.Convert]::ToBoolean($form.AllowCreatePrivateChannels)
+            allowCreateUpdateChannels         = [System.Convert]::ToBoolean($form.AllowCreateUpdateChannels)
+            allowDeleteChannels               = [System.Convert]::ToBoolean($form.AllowDeleteChannels)
+            allowAddRemoveApps                = [System.Convert]::ToBoolean($form.AllowAddRemoveApps)
+            allowCreateUpdateRemoveTabs       = [System.Convert]::ToBoolean($form.AllowCreateUpdateRemoveTabs)
+            allowCreateUpdateRemoveConnectors = [System.Convert]::ToBoolean($form.AllowCreateUpdateRemoveConnectors)
         }
         guestSettings     = @{
-            allowCreateUpdateChannels = [bool]$form.AllowGuestCreateUpdateChannels
-            allowDeleteChannels       = [bool]$form.AllowGuestDeleteChannels
+            allowCreateUpdateChannels = [System.Convert]::ToBoolean($form.AllowGuestCreateUpdateChannels)
+            allowDeleteChannels       = [System.Convert]::ToBoolean($form.AllowGuestDeleteChannels)
         }
         messagingSettings = @{
-            allowUserEditMessages    = [bool]$form.AllowUserEditMessages
-            allowUserDeleteMessages  = [bool]$form.AllowUserDeleteMessages
-            allowOwnerDeleteMessages = [bool]$form.AllowOwnerDeleteMessages
-            allowTeamMentions        = [bool]$form.AllowTeamMentions
-            allowChannelMentions     = [bool]$form.AllowChannelMentions
+            allowUserEditMessages    = [System.Convert]::ToBoolean($form.AllowUserEditMessages)
+            allowUserDeleteMessages  = [System.Convert]::ToBoolean($form.AllowUserDeleteMessages)
+            allowOwnerDeleteMessages = [System.Convert]::ToBoolean($form.AllowOwnerDeleteMessages)
+            allowTeamMentions        = [System.Convert]::ToBoolean($form.AllowTeamMentions)
+            allowChannelMentions     = [System.Convert]::ToBoolean($form.AllowChannelMentions)
         }
         funSettings       = @{
-            allowGiphy            = [bool]$form.AllowGiphy
+            allowGiphy            = [System.Convert]::ToBoolean($form.AllowGiphy)
             giphyContentRating    = $giphyContentRating
-            allowStickersAndMemes = [bool]$form.AllowStickersAndMemes
-            allowCustomMemes      = [bool]$form.AllowCustomMemes
+            allowStickersAndMemes = [System.Convert]::ToBoolean($form.AllowStickersAndMemes)
+            allowCustomMemes      = [System.Convert]::ToBoolean($form.AllowCustomMemes)
         }
     }
 
@@ -221,24 +221,6 @@ try {
         ErrorAction = 'Stop'
     }
     $null = Invoke-RestMethod @updateTeamSplatParams
-
-    $actionMessage = "updating team beta discovery settings for Team [$displayName] with ID [$groupId]"
-    $teamBetaBody = @{
-        discoverySettings = @{
-            showInTeamsSearchAndSuggestions = [bool]$form.ShowInTeamsSearchAndSuggestions
-        }
-    }
-
-    $updateBetaTeamSplatParams = @{
-        Uri         = "https://graph.microsoft.com/beta/teams/$groupId"
-        Body        = ($teamBetaBody | ConvertTo-Json -Depth 10)
-        Headers     = $authorization
-        Method      = 'PATCH'
-        ContentType = 'application/json'
-        Verbose     = $false
-        ErrorAction = 'Stop'
-    }
-    $null = Invoke-RestMethod @updateBetaTeamSplatParams
 
     Write-Information "Successfully updated Team [$displayName] with ID [$groupId]."
     $Log = @{
@@ -276,4 +258,3 @@ catch {
     Write-Warning $warningMessage
     Write-Error $auditMessage
 }
-

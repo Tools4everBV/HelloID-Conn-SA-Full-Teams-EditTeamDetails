@@ -11,7 +11,6 @@ By using this delegated form, you can update Team settings in Microsoft Teams th
 1. Search for and select an existing Microsoft Team
 2. Retrieve current Team settings into the form
 3. Update member, guest, messaging, and fun settings
-4. Update discovery settings through the beta endpoint
 
 ## Getting started
 ### Requirements
@@ -41,7 +40,6 @@ The following user-defined variables are used by the connector.
 
 ### Team settings behavior
 - Team core settings are updated through `v1.0/teams/{teamId}`.
-- Team discovery settings are updated through `beta/teams/{teamId}`.
 
 ## Development resources
 
@@ -54,7 +52,6 @@ The following endpoints are used by the connector.
 | `https://login.microsoftonline.com/{tenantId}/oauth2/token` | Retrieve OAuth2 access token using certificate-based client credentials |
 | `https://graph.microsoft.com/v1.0/groups`                   | Search Teams-enabled groups                                             |
 | `https://graph.microsoft.com/v1.0/teams/{teamId}`           | Retrieve and update team settings                                       |
-| `https://graph.microsoft.com/beta/teams/{teamId}`           | Retrieve and update discovery settings                                  |
 
 ### API documentation
 

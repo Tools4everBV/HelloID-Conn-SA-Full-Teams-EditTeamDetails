@@ -177,13 +177,11 @@ try {
     Write-Information $actionMessage
 
     $teamsResponse = Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/teams/$groupId" -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
-    $teamsResponseBeta = Invoke-RestMethod -Uri "https://graph.microsoft.com/beta/teams/$groupId" -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
 
     $memberSettings = $teamsResponse.memberSettings
     $messagingSettings = $teamsResponse.messagingSettings
     $funSettings = $teamsResponse.funSettings
     $guestSettings = $teamsResponse.guestSettings
-    $teamDiscoverySettings = $teamsResponseBeta.discoverySettings
 
     $returnObject = @{
         m_allowCreatePrivateChannels        = $memberSettings.allowCreatePrivateChannels
@@ -200,10 +198,9 @@ try {
         mes_allowTeamMentions               = $messagingSettings.allowTeamMentions
         mes_allowChannelMentions            = $messagingSettings.allowChannelMentions
         f_allowGiphy                        = $funSettings.allowGiphy
-        f_giphyContentRating                = $funSettings.giphyContentRating
+        f_giphyContentRating                = if ($funSettings.giphyContentRating -eq 'strict') { $true } else { $false }
         f_allowStickersAndMemes             = $funSettings.allowStickersAndMemes
         f_allowCustomMemes                  = $funSettings.allowCustomMemes
-        b_showInTeamsSearchAndSuggestions   = $teamDiscoverySettings.showInTeamsSearchAndSuggestions
     }
     Write-Output $returnObject
 }
@@ -223,4 +220,3 @@ catch {
     Write-Warning $warningMessage
     Write-Error $auditMessage
 }
-

@@ -62,3 +62,4 @@ catch {
     Write-Error "Error $($actionMessage). Error: $($ex.Exception.Message)"
     # exit # use when using multiple try/catch and the script must stop
 }
+

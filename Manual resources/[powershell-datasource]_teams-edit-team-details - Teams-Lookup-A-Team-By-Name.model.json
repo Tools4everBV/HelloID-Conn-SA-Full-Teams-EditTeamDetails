@@ -1,18 +1,10 @@
 [
     {
-        "key":  "Visibility",
-        "type":  0
-    },
-    {
         "key":  "GroupId",
         "type":  0
     },
     {
-        "key":  "Mailaddress",
-        "type":  0
-    },
-    {
-        "key":  "MailNickName",
+        "key":  "Description",
         "type":  0
     },
     {
@@ -20,7 +12,15 @@
         "type":  0
     },
     {
-        "key":  "Description",
+        "key":  "Mailaddress",
+        "type":  0
+    },
+    {
+        "key":  "Visibility",
+        "type":  0
+    },
+    {
+        "key":  "MailNickName",
         "type":  0
     }
 ]

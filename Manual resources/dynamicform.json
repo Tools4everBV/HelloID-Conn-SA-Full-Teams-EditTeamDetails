@@ -63,7 +63,8 @@
                                                                                       }
                                                                         },
                                                    "useFilter":  true,
-                                                   "useDefault":  false
+                                                   "useDefault":  false,
+                                                   "allowCsvDownload":  true
                                                },
                            "type":  "grid",
                            "summaryVisibility":  "Show",
@@ -77,6 +78,165 @@
         "label":  "Edit Team Details",
         "fields":  [
                        {
+                           "key":  "teamDisplayName",
+                           "templateOptions":  {
+                                                   "label":  "Displayname",
+                                                   "useDependOn":  true,
+                                                   "dependOn":  "teams",
+                                                   "dependOnProperty":  "DisplayName",
+                                                   "required":  true
+                                               },
+                           "type":  "input",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "teamDescription",
+                           "templateOptions":  {
+                                                   "label":  "Description",
+                                                   "required":  true,
+                                                   "useDependOn":  true,
+                                                   "dependOn":  "teams",
+                                                   "dependOnProperty":  "Description"
+                                               },
+                           "type":  "input",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "teamVisibility",
+                           "templateOptions":  {
+                                                   "label":  "Security",
+                                                   "useObjects":  true,
+                                                   "useDataSource":  true,
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_1",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedgroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "valueField":  "value",
+                                                   "textField":  "label",
+                                                   "useDefault":  true,
+                                                   "defaultSelectorProperty":  "selected"
+                                               },
+                           "type":  "radio",
+                           "summaryVisibility":  "Show",
+                           "textOrLabel":  "label",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "teamOwners",
+                           "templateOptions":  {
+                                                   "label":  "Owner(s)",
+                                                   "required":  false,
+                                                   "filterable":  true,
+                                                   "useDataSource":  true,
+                                                   "dualList":  {
+                                                                    "options":  [
+                                                                                    {
+                                                                                        "guid":  "75ea2890-88f8-4851-b202-626123054e14",
+                                                                                        "name":  "Apple"
+                                                                                    },
+                                                                                    {
+                                                                                        "guid":  "0607270d-83e2-4574-9894-0b70011b663f",
+                                                                                        "name":  "Pear"
+                                                                                    },
+                                                                                    {
+                                                                                        "guid":  "1ef6fe01-3095-4614-a6db-7c8cd416ae3b",
+                                                                                        "name":  "Orange"
+                                                                                    }
+                                                                                ],
+                                                                    "optionKeyProperty":  "id",
+                                                                    "optionDisplayProperty":  "userPrincipalName",
+                                                                    "labelLeft":  "All users",
+                                                                    "labelRight":  "Owner(s)"
+                                                                },
+                                                   "destinationDataSourceConfig":  {
+                                                                                       "dataSourceGuid":  "$dataSourceGuid_2",
+                                                                                       "input":  {
+                                                                                                     "propertyInputs":  [
+                                                                                                                            {
+                                                                                                                                "propertyName":  "selectedgroup",
+                                                                                                                                "otherFieldValue":  {
+                                                                                                                                                        "otherFieldKey":  "teams"
+                                                                                                                                                    }
+                                                                                                                            }
+                                                                                                                        ]
+                                                                                                 }
+                                                                                   },
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_3",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+
+                                                                                                             ]
+                                                                                      }
+                                                                        }
+                                               },
+                           "type":  "duallist",
+                           "summaryVisibility":  "Show",
+                           "sourceDataSourceIdentifierSuffix":  "source-datasource",
+                           "destinationDataSourceIdentifierSuffix":  "destination-datasource",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       },
+                       {
+                           "key":  "tiValidation",
+                           "templateOptions":  {
+                                                   "label":  "Validation",
+                                                   "readonly":  true,
+                                                   "pattern":  "^Valid:\\s*.*",
+                                                   "required":  true,
+                                                   "minLength":  1,
+                                                   "useDataSource":  true,
+                                                   "dataSourceConfig":  {
+                                                                            "dataSourceGuid":  "$dataSourceGuid_4",
+                                                                            "input":  {
+                                                                                          "propertyInputs":  [
+                                                                                                                 {
+                                                                                                                     "propertyName":  "displayname",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teamDisplayName"
+                                                                                                                                         }
+                                                                                                                 },
+                                                                                                                 {
+                                                                                                                     "propertyName":  "selectedgroup",
+                                                                                                                     "otherFieldValue":  {
+                                                                                                                                             "otherFieldKey":  "teams"
+                                                                                                                                         }
+                                                                                                                 }
+                                                                                                             ]
+                                                                                      }
+                                                                        },
+                                                   "displayField":  "output"
+                                               },
+                           "type":  "input",
+                           "summaryVisibility":  "Show",
+                           "requiresTemplateOptions":  true,
+                           "requiresKey":  true,
+                           "requiresDataSource":  false
+                       }
+                   ]
+    },
+    {
+        "label":  "Edit Team Settings",
+        "fields":  [
+                       {
                            "key":  "AllowCreatePrivateChannels",
                            "templateOptions":  {
                                                    "label":  "AllowCreatePrivateChannels",
@@ -85,7 +245,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "m_allowCreatePrivateChannels",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_1",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_5",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -114,7 +274,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "m_allowCreateUpdateChannels",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_2",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_6",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -143,7 +303,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "m_allowDeleteChannels",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_3",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_7",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -172,7 +332,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "m_allowAddRemoveApps",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_4",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_8",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -201,7 +361,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "m_allowCreateUpdateRemoveTabs",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_5",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_9",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -230,7 +390,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "m_allowCreateUpdateRemoveConnectors",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_6",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_10",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -259,7 +419,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "g_allowCreateUpdateChannels",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_7",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_11",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -288,7 +448,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "g_allowDeleteChannels",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_8",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_12",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -317,7 +477,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "mes_allowUserEditMessages",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_9",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_13",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -346,7 +506,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "mes_allowUserDeleteMessages",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_10",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_14",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -375,7 +535,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "mes_allowOwnerDeleteMessages",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_11",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_15",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -404,7 +564,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "mes_allowTeamMentions",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_12",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_16",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -433,7 +593,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "mes_allowChannelMentions",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_13",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_17",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -462,7 +622,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "f_allowGiphy",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_14",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_18",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -491,7 +651,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "f_giphyContentRating",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_15",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_19",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -520,7 +680,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "f_allowStickersAndMemes",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_16",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_20",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {
@@ -549,36 +709,7 @@
                                                    "useDataSource":  true,
                                                    "displayField":  "f_allowCustomMemes",
                                                    "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_17",
-                                                                            "input":  {
-                                                                                          "propertyInputs":  [
-                                                                                                                 {
-                                                                                                                     "propertyName":  "selectedGroup",
-                                                                                                                     "otherFieldValue":  {
-                                                                                                                                             "otherFieldKey":  "teams"
-                                                                                                                                         }
-                                                                                                                 }
-                                                                                                             ]
-                                                                                      }
-                                                                        },
-                                                   "useFilter":  false
-                                               },
-                           "type":  "boolean",
-                           "summaryVisibility":  "Show",
-                           "requiresTemplateOptions":  true,
-                           "requiresKey":  true,
-                           "requiresDataSource":  false
-                       },
-                       {
-                           "key":  "ShowInTeamsSearchAndSuggestions",
-                           "templateOptions":  {
-                                                   "label":  "ShowInTeamsSearchAndSuggestions",
-                                                   "useSwitch":  true,
-                                                   "checkboxLabel":  "Allow",
-                                                   "useDataSource":  true,
-                                                   "displayField":  "b_showInTeamsSearchAndSuggestions",
-                                                   "dataSourceConfig":  {
-                                                                            "dataSourceGuid":  "$dataSourceGuid_18",
+                                                                            "dataSourceGuid":  "$dataSourceGuid_21",
                                                                             "input":  {
                                                                                           "propertyInputs":  [
                                                                                                                  {

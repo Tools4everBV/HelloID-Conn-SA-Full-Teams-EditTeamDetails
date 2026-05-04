@@ -1,11 +1,11 @@
 #######################################################################
-# Template: HelloID SA Delegated form task
-# Name: Teams - Edit Team Details
+# Template: HelloID SA Powershell data source
+# Name: teams-edit-team-details | Get-Team-Parameters
 # Date: 03-04-2026
 #######################################################################
 
-# For basic information about delegated form tasks see:
-# https://docs.helloid.com/en/service-automation/delegated-forms/delegated-form-tasks.html
+# For basic information about powershell data sources see:
+# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources.html
 
 # Service automation variables:
 # https://docs.helloid.com/en/service-automation/service-automation-variables.html
@@ -16,7 +16,7 @@ $VerbosePreference = "SilentlyContinue"
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
-# global variables (Automation --> Variable libary):
+# global variables (Automation --> Variable library):
 # Outcommented as these are set from Global Variables
 # $EntraIdTenantId = ""
 # $EntraIdAppId = ""
@@ -24,13 +24,7 @@ $WarningPreference = "Continue"
 # $EntraIdCertificatePassword = ""
 
 # variables configured in form
-$groupId = $form.teams.GroupId
-$currentDisplayName = $form.teams.DisplayName
-$displayName = $form.teamDisplayName
-$description = $form.teamDescription
-$visibility = $form.teamVisibility.value
-$ownersToAdd = @($form.teamOwners.leftToRight)
-$ownersToRemove = @($form.teamOwners.rightToLeft)
+$groupId = $datasource.selectedgroup.GroupId
 
 #endregion init
 
@@ -169,14 +163,6 @@ function Get-MSEntraCertificate {
 #endregion functions
 
 try {
-    if ($form.giphyContentRating -eq 'true') {
-        $giphyContentRating = "Strict"
-    }
-    else {
-        $giphyContentRating = "Moderate"
-    }
-
-    $actionMessage = "authenticating to Microsoft Graph"
     Write-Verbose 'connecting to MS-Entra'
     $certificate = Get-MSEntraCertificate
     $entraToken = Get-MSEntraAccessToken -Certificate $certificate
@@ -187,120 +173,36 @@ try {
         Accept         = "application/json"
     }
 
-    $actionMessage = "updating team metadata for Team [$currentDisplayName] with ID [$groupId]"
-    $groupBody = @{
-        displayName = $displayName
-        description = $description
-        visibility  = $visibility
+    $actionMessage = "getting Team settings details for Team ID [$groupId]"
+    Write-Information $actionMessage
+
+    $teamsResponse = Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/teams/$groupId" -Method Get -Headers $authorization -Verbose:$false -ErrorAction Stop
+
+    $memberSettings = $teamsResponse.memberSettings
+    $messagingSettings = $teamsResponse.messagingSettings
+    $funSettings = $teamsResponse.funSettings
+    $guestSettings = $teamsResponse.guestSettings
+
+    $returnObject = @{
+        m_allowCreatePrivateChannels        = $memberSettings.allowCreatePrivateChannels
+        m_allowCreateUpdateChannels         = $memberSettings.allowCreateUpdateChannels
+        m_allowDeleteChannels               = $memberSettings.allowDeleteChannels
+        m_allowAddRemoveApps                = $memberSettings.allowAddRemoveApps
+        m_allowCreateUpdateRemoveTabs       = $memberSettings.allowCreateUpdateRemoveTabs
+        m_allowCreateUpdateRemoveConnectors = $memberSettings.allowCreateUpdateRemoveConnectors
+        g_allowCreateUpdateChannels         = $guestSettings.allowCreateUpdateChannels
+        g_allowDeleteChannels               = $guestSettings.allowDeleteChannels
+        mes_allowUserEditMessages           = $messagingSettings.allowUserEditMessages
+        mes_allowUserDeleteMessages         = $messagingSettings.allowUserDeleteMessages
+        mes_allowOwnerDeleteMessages        = $messagingSettings.allowOwnerDeleteMessages
+        mes_allowTeamMentions               = $messagingSettings.allowTeamMentions
+        mes_allowChannelMentions            = $messagingSettings.allowChannelMentions
+        f_allowGiphy                        = $funSettings.allowGiphy
+        f_giphyContentRating                = if ($funSettings.giphyContentRating -eq 'strict') { $true } else { $false }
+        f_allowStickersAndMemes             = $funSettings.allowStickersAndMemes
+        f_allowCustomMemes                  = $funSettings.allowCustomMemes
     }
-    Write-Information "Updating team metadata for Team [$currentDisplayName] with ID [$groupId]. New display name: [$displayName], description: [$description], visibility: [$visibility]."
-
-    $updateGroupSplatParams = @{
-        Uri         = "https://graph.microsoft.com/v1.0/groups/$groupId"
-        Body        = ($groupBody | ConvertTo-Json -Depth 10)
-        Headers     = $authorization
-        Method      = 'PATCH'
-        ContentType = 'application/json'
-        Verbose     = $false
-        ErrorAction = 'Stop'
-    }
-    $null = Invoke-RestMethod @updateGroupSplatParams
-
-    $actionMessage = "updating team settings for Team [$displayName] with ID [$groupId]"
-    $teamBody = @{
-        memberSettings    = @{
-            allowCreatePrivateChannels        = [System.Convert]::ToBoolean($form.AllowCreatePrivateChannels)
-            allowCreateUpdateChannels         = [System.Convert]::ToBoolean($form.AllowCreateUpdateChannels)
-            allowDeleteChannels               = [System.Convert]::ToBoolean($form.AllowDeleteChannels)
-            allowAddRemoveApps                = [System.Convert]::ToBoolean($form.AllowAddRemoveApps)
-            allowCreateUpdateRemoveTabs       = [System.Convert]::ToBoolean($form.AllowCreateUpdateRemoveTabs)
-            allowCreateUpdateRemoveConnectors = [System.Convert]::ToBoolean($form.AllowCreateUpdateRemoveConnectors)
-        }
-        guestSettings     = @{
-            allowCreateUpdateChannels = [System.Convert]::ToBoolean($form.AllowGuestCreateUpdateChannels)
-            allowDeleteChannels       = [System.Convert]::ToBoolean($form.AllowGuestDeleteChannels)
-        }
-        messagingSettings = @{
-            allowUserEditMessages    = [System.Convert]::ToBoolean($form.AllowUserEditMessages)
-            allowUserDeleteMessages  = [System.Convert]::ToBoolean($form.AllowUserDeleteMessages)
-            allowOwnerDeleteMessages = [System.Convert]::ToBoolean($form.AllowOwnerDeleteMessages)
-            allowTeamMentions        = [System.Convert]::ToBoolean($form.AllowTeamMentions)
-            allowChannelMentions     = [System.Convert]::ToBoolean($form.AllowChannelMentions)
-        }
-        funSettings       = @{
-            allowGiphy            = [System.Convert]::ToBoolean($form.AllowGiphy)
-            giphyContentRating    = $giphyContentRating
-            allowStickersAndMemes = [System.Convert]::ToBoolean($form.AllowStickersAndMemes)
-            allowCustomMemes      = [System.Convert]::ToBoolean($form.AllowCustomMemes)
-        }
-    }
-
-    $updateTeamSplatParams = @{
-        Uri         = "https://graph.microsoft.com/v1.0/teams/$groupId"
-        Body        = ($teamBody | ConvertTo-Json -Depth 10)
-        Headers     = $authorization
-        Method      = 'PATCH'
-        ContentType = 'application/json'
-        Verbose     = $false
-        ErrorAction = 'Stop'
-    }
-    $null = Invoke-RestMethod @updateTeamSplatParams
-
-    if ($ownersToAdd.Count -gt 0) {
-        $ownersToAddDisplayNames = $ownersToAdd | Select-Object -ExpandProperty userPrincipalName
-        $ownerIdsToAdd = $ownersToAdd | Select-Object -ExpandProperty id
-
-        $actionMessage = "adding team owners for Team [$displayName] with ID [$groupId]"
-        Write-Information "Adding team owners for Team [$displayName] with ID [$groupId]. Owners to add (UserPrincipalName): $ownersToAddDisplayNames."
-
-        foreach ($ownerId in $ownerIdsToAdd) {
-            Write-Information "Adding user with ID [$ownerId] as owner to Team [$displayName] with ID [$groupId]."
-            $ownerRefBody = @{
-                '@odata.id' = "https://graph.microsoft.com/v1.0/users/$ownerId"
-            }
-            $addOwnerSplatParams = @{
-                Uri         = "https://graph.microsoft.com/v1.0/groups/$groupId/owners/`$ref"
-                Body        = ($ownerRefBody | ConvertTo-Json -Depth 5)
-                Headers     = $authorization
-                Method      = 'POST'
-                ContentType = 'application/json'
-                Verbose     = $false
-                ErrorAction = 'Stop'
-            }
-            $null = Invoke-RestMethod @addOwnerSplatParams
-        }
-    }
-    if ($ownersToRemove.Count -gt 0) {
-        $ownersToRemoveDisplayNames = $ownersToRemove | Select-Object -ExpandProperty userPrincipalName
-        $ownerIdsToRemove = $ownersToRemove | Select-Object -ExpandProperty id
-
-        $actionMessage = "removing team owners for Team [$displayName] with ID [$groupId]"
-        Write-Information "Removing team owners for Team [$displayName] with ID [$groupId]. Owners to remove (UserPrincipalName): $ownersToRemoveDisplayNames."
-
-        foreach ($ownerId in $ownerIdsToRemove) {
-            Write-Information "Removing user with ID [$ownerId] as owner from Team [$displayName] with ID [$groupId]."
-            $removeOwnerSplatParams = @{
-                Uri         = "https://graph.microsoft.com/v1.0/groups/$groupId/owners/$ownerId/`$ref"
-                Headers     = $authorization
-                Method      = 'DELETE'
-                ContentType = 'application/json'
-                Verbose     = $false
-                ErrorAction = 'Stop'
-            }
-            $null = Invoke-RestMethod @removeOwnerSplatParams
-        }
-    }
-
-    Write-Information "Successfully updated Team [$displayName] with ID [$groupId]."
-    $Log = @{
-        Action            = "UpdateResource"
-        System            = "MicrosoftTeams"
-        Message           = "Successfully updated Team [$displayName] with ID [$groupId]."
-        IsError           = $false
-        TargetDisplayName = $displayName
-        TargetIdentifier  = $groupId
-    }
-    Write-Information -Tags "Audit" -MessageData $log
+    Write-Output $returnObject
 }
 catch {
     $ex = $PSItem
@@ -315,15 +217,6 @@ catch {
         $warningMessage = "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
     }
 
-    $Log = @{
-        Action            = "UpdateResource"
-        System            = "MicrosoftTeams"
-        Message           = $auditMessage
-        IsError           = $true
-        TargetDisplayName = $displayName
-        TargetIdentifier  = $groupId
-    }
-    Write-Information -Tags "Audit" -MessageData $log
     Write-Warning $warningMessage
     Write-Error $auditMessage
 }

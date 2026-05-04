@@ -1,113 +1,91 @@
-<!-- Description -->
+# HelloID-Conn-SA-Full-Teams-EditTeamDetails
+
+| :information_source: Information                                                                                                                                                                                                                                                                                                                                                          |
+|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| This repository contains the connector and configuration code only. The implementer is responsible for acquiring the connection details such as username, password, certificate, etc. You might even need to sign a contract or agreement with the supplier before implementing this connector. Please contact the client's application manager to coordinate the connector requirements. |
+
 ## Description
-This HelloID Service Automation Delegated Form can edit some settings of a Microsoft Teams Team
+_HelloID-Conn-SA-Full-Teams-EditTeamDetails_ is a template designed for use with HelloID Service Automation (SA) Delegated Forms. It can be imported into HelloID and customized according to your requirements.
 
-## Versioning
-| Version | Description | Date |
-| - | - | - |
-| 1.2.0   | Updated to Graph API with audit-logging | 2022/10/18  |
-| 1.1.0   | Updated with code for SA agent | 2022/03/14  |
-| 1.0.1   | Added version number and updated all-in-one script | 2021/12/13  |
-| 1.0.0   | Initial release | 2020/12/05  |
+By using this delegated form, you can update Team settings in Microsoft Teams through Microsoft Graph. The delegated form supports the following flow:
+1. Search for and select an existing Microsoft Team
+2. Retrieve Team metadata and Team settings into the form
+3. Optionally update Team display name, description, and privacy
+4. Add and/or remove Team owners by moving users between source and destination lists
+5. Validate Team naming uniqueness before submit
+6. Update Team metadata and Team settings
 
-<!-- TABLE OF CONTENTS -->
-## Table of Contents
-- [Description](#description)
-- [Versioning](#versioning)
-- [Requirements](#requirements)
-- [Table of Contents](#table-of-contents)
-- [Introduction](#introduction)
-- [Getting the Azure AD graph API access](#getting-the-azure-ad-graph-api-access)
-  - [Application Registration](#application-registration)
-  - [Configuring App Permissions](#configuring-app-permissions)
-  - [Authentication and Authorization](#authentication-and-authorization)
-- [All-in-one PowerShell setup script](#all-in-one-powershell-setup-script)
-  - [Getting started](#getting-started)
-- [Post-setup configuration](#post-setup-configuration)
-- [Manual resources](#manual-resources)
-- [Getting help](#getting-help)
-- [HelloID Docs](#helloid-docs)
+## Getting started
+### Requirements
 
+- **Microsoft Entra application registration (certificate-based)**:
+  The connector authenticates to Microsoft Graph using a certificate (client credentials flow).
+- **Microsoft Graph application permissions**:
+  Configure and grant admin consent for the following minimal application permissions:
+  - `GroupMember.Read.All`
+  - `Group.ReadWrite.All`
+  - `TeamSettings.ReadWrite.Group`
+  - `User.Read.All`
 
-## Introduction
-The interface to communicate with Microsoft Azure AD is through the Microsoft Graph API.
+### Connection settings
 
-<!-- GETTING STARTED -->
-## Getting the Azure AD graph API access
+The following user-defined variables are used by the connector.
 
-By using this connector you will have the ability to enable or disable an Azure AD User.
+| Setting                        | Description                                                                | Mandatory |
+|--------------------------------|----------------------------------------------------------------------------|-----------|
+| EntraIdTenantId                | Microsoft Entra tenant ID                                                  | Yes       |
+| EntraIdAppId                   | Application (client) ID of the app registration                            | Yes       |
+| EntraIdCertificateBase64String | Base64 encoded certificate (including private key) used for authentication | Yes       |
+| EntraIdCertificatePassword     | Password for the certificate                                               | Yes       |
+| TeamsMailsuffix                | Mail suffix used when building mail address from display name              | Yes       |
 
-### Application Registration
-The first step to connect to Graph API and make requests, is to register a new <b>Azure Active Directory Application</b>. The application is used to connect to the API and to manage permissions.
+## Remarks
 
-* Navigate to <b>App Registrations</b> in Azure, and select “New Registration” (<b>Azure Portal > Azure Active Directory > App Registration > New Application Registration</b>).
-* Next, give the application a name. In this example we are using “<b>HelloID PowerShell</b>” as application name.
-* Specify who can use this application (<b>Accounts in this organizational directory only</b>).
-* Specify the Redirect URI. You can enter any url as a redirect URI value. In this example we used http://localhost because it doesn't have to resolve.
-* Click the “<b>Register</b>” button to finally create your new application.
+### Microsoft Graph Query Behavior
+- `ConsistencyLevel: eventual` is added on Graph requests where advanced query capabilities are used (for example filtering and searching result sets).
 
-Some key items regarding the application are the Application ID (which is the Client ID), the Directory ID (which is the Tenant ID) and Client Secret.
+### Team settings behavior
+- Team core settings are updated through `v1.0/teams/{teamId}`.
 
-### Configuring App Permissions
-The [Microsoft Graph documentation](https://docs.microsoft.com/en-us/graph) provides details on which permission are required for each permission type.
+### Team metadata and owner behavior
+- Team metadata is updated through `v1.0/groups/{groupId}`.
+- Team owners are synchronized through `v1.0/groups/{groupId}/owners/$ref` for add and remove operations.
+- Privacy options are loaded dynamically and include `Public` and `Private`. `HiddenMembership` is only shown when the selected Team already uses this visibility.
 
-To assign your application the right permissions, navigate to <b>Azure Portal > Azure Active Directory >App Registrations</b>.
-Select the application we created before, and select “<b>API Permissions</b>” or “<b>View API Permissions</b>”.
-To assign a new permission to your application, click the “<b>Add a permission</b>” button.
-From the “<b>Request API Permissions</b>” screen click “<b>Microsoft Graph</b>”.
-For this connector the following permissions are used as <b>Application permissions</b>:
-*	Allows the app to read the full set of profile properties, reports, and managers of other users in your organization, on your behalf by using <b><i>User.Read.All</i></b>
-*	Read and Write all groups in an organization’s directory by using <b><i>Group.ReadWrite.All</i></b>
-*	Read and change all teams' settings, on your behalf by using <b><i>TeamSettings.ReadWrite.All</i></b>
-*	Read and Write data to an organization’s directory by using <b><i>Directory.ReadWrite.All</i></b>
+### Validation behavior
+- The form validates whether display name, mail, and mail nickname are unique before submit.
+- Validation excludes the currently selected Team from uniqueness checks.
 
-Some high-privilege permissions can be set to admin-restricted and require an administrators consent to be granted.
+## Development resources
 
-To grant admin consent to our application press the “<b>Grant admin consent for TENANT</b>” button.
+### API endpoints
 
-### Authentication and Authorization
-There are multiple ways to authenticate to the Graph API with each has its own pros and cons, in this example we are using the Authorization Code grant type.
+The following endpoints are used by the connector.
 
-*	First we need to get the <b>Client ID</b>, go to the <b>Azure Portal > Azure Active Directory > App Registrations</b>.
-*	Select your application and copy the Application (client) ID value.
-*	After we have the Client ID we also have to create a <b>Client Secret</b>.
-*	From the Azure Portal, go to <b>Azure Active Directory > App Registrations</b>.
-*	Select the application we have created before, and select "<b>Certificates and Secrets</b>". 
-*	Under “Client Secrets” click on the “<b>New Client Secret</b>” button to create a new secret.
-*	Provide a logical name for your secret in the Description field, and select the expiration date for your secret.
-*	It's IMPORTANT to copy the newly generated client secret, because you cannot see the value anymore after you close the page.
-*	At least we need to get is the <b>Tenant ID</b>. This can be found in the Azure Portal by going to <b>Azure Active Directory > Custom Domain Names</b>, and then finding the .onmicrosoft.com domain.
+| Endpoint                                                    | Description                                                             |
+|-------------------------------------------------------------|-------------------------------------------------------------------------|
+| `https://login.microsoftonline.com/{tenantId}/oauth2/token` | Retrieve OAuth2 access token using certificate-based client credentials |
+| `https://graph.microsoft.com/v1.0/groups`                   | Search Teams-enabled groups                                             |
+| `https://graph.microsoft.com/v1.0/groups/{groupId}`         | Update Team metadata (display name, description, visibility)            |
+| `https://graph.microsoft.com/v1.0/groups/{groupId}/owners`  | Read Team owners                                                        |
+| `https://graph.microsoft.com/v1.0/groups/{groupId}/owners/$ref` | Add and remove Team owners                                          |
+| `https://graph.microsoft.com/v1.0/users`                    | Retrieve selectable Entra ID users for owner selection                  |
+| `https://graph.microsoft.com/v1.0/teams/{teamId}`           | Retrieve and update Team settings                                       |
 
+### API documentation
 
-## All-in-one PowerShell setup script
-The PowerShell script "createform.ps1" contains a complete PowerShell script using the HelloID API to create the complete Form including user defined variables, tasks and data sources.
-
-_Please note that this script asumes none of the required resources do exists within HelloID. The script does not contain versioning or source control_
-
-### Getting started
-Please follow the documentation steps on [HelloID Docs](https://docs.helloid.com/hc/en-us/articles/360017556559-Service-automation-GitHub-resources) in order to setup and run the All-in one Powershell Script in your own environment.
-
-
-## Post-setup configuration
-After the all-in-one PowerShell script has run and created all the required resources. The following items need to be configured according to your own environment
- 1. Update the following [user defined variables](https://docs.helloid.com/hc/en-us/articles/360014169933-How-to-Create-and-Manage-User-Defined-Variables)
-<table>
-  <tr><td><strong>Variable name</strong></td><td><strong>Example value</strong></td><td><strong>Description</strong></td></tr>
-  <tr><td>AADtenantID</td><td>Azure AD Tenant Id</td><td>Id of the Azure tenant</td></tr>
-  <tr><td>AADAppId</td><td>Azure AD App Id</td><td>Id of the Azure app</td></tr>
-  <tr><td>AADAppSecret</td><td>Azure AD App Secret</td><td>Secreat of the Azure app</td></tr>  
-</table>
-## Manual resources
-This Delegated Form uses the following resources in order to run
-
-### Powershell data source '[powershell-datasource]_Teams-edit-team-details-get-team-parameters'
-
-### Powershell data source '[powershell-datasource]_Teams-generate-table-wildcard'
-
-### Delegated form task '[task]_Teams - Edit Team Details'
+- https://learn.microsoft.com/graph/api/overview
+- https://learn.microsoft.com/graph/api/group-list
+- https://learn.microsoft.com/graph/api/group-update
+- https://learn.microsoft.com/graph/api/group-post-owners
+- https://learn.microsoft.com/graph/api/group-delete-owners
+- https://learn.microsoft.com/graph/api/team-get
+- https://learn.microsoft.com/graph/api/team-update
+- https://learn.microsoft.com/graph/api/user-list
 
 ## Getting help
-_If you need help, feel free to ask questions on our [forum](https://forum.helloid.com/forum/helloid-connectors/service-automation/651-helloid-sa-microsoft-teams-edit-team-details)_
+> :bulb: **Tip:**  
+> _For more information on Delegated Forms, please refer to our [documentation](https://docs.helloid.com/en/service-automation/delegated-forms.html) pages_.
 
-## HelloID Docs
+## HelloID docs
 The official HelloID documentation can be found at: https://docs.helloid.com/

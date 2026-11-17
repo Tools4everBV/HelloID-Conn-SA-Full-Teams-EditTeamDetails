@@ -209,29 +209,29 @@ try {
     $actionMessage = "updating team settings for Team [$displayName] with ID [$groupId]"
     $teamBody = @{
         memberSettings    = @{
-            allowCreatePrivateChannels        = [System.Convert]::ToBoolean($form.AllowCreatePrivateChannels)
-            allowCreateUpdateChannels         = [System.Convert]::ToBoolean($form.AllowCreateUpdateChannels)
-            allowDeleteChannels               = [System.Convert]::ToBoolean($form.AllowDeleteChannels)
-            allowAddRemoveApps                = [System.Convert]::ToBoolean($form.AllowAddRemoveApps)
-            allowCreateUpdateRemoveTabs       = [System.Convert]::ToBoolean($form.AllowCreateUpdateRemoveTabs)
-            allowCreateUpdateRemoveConnectors = [System.Convert]::ToBoolean($form.AllowCreateUpdateRemoveConnectors)
+            allowCreatePrivateChannels        = if ([string]::IsNullOrWhiteSpace($form.AllowCreatePrivateChannels)) { $false } else { [System.Convert]::ToBoolean($form.AllowCreatePrivateChannels) }
+            allowCreateUpdateChannels         = if ([string]::IsNullOrWhiteSpace($form.AllowCreateUpdateChannels)) { $false } else { [System.Convert]::ToBoolean($form.AllowCreateUpdateChannels) }
+            allowDeleteChannels               = if ([string]::IsNullOrWhiteSpace($form.AllowDeleteChannels)) { $false } else { [System.Convert]::ToBoolean($form.AllowDeleteChannels) }
+            allowAddRemoveApps                = if ([string]::IsNullOrWhiteSpace($form.AllowAddRemoveApps)) { $false } else { [System.Convert]::ToBoolean($form.AllowAddRemoveApps) }
+            allowCreateUpdateRemoveTabs       = if ([string]::IsNullOrWhiteSpace($form.AllowCreateUpdateRemoveTabs)) { $false } else { [System.Convert]::ToBoolean($form.AllowCreateUpdateRemoveTabs) }
+            allowCreateUpdateRemoveConnectors = if ([string]::IsNullOrWhiteSpace($form.AllowCreateUpdateRemoveConnectors)) { $false } else { [System.Convert]::ToBoolean($form.AllowCreateUpdateRemoveConnectors) }
         }
         guestSettings     = @{
-            allowCreateUpdateChannels = [System.Convert]::ToBoolean($form.AllowGuestCreateUpdateChannels)
-            allowDeleteChannels       = [System.Convert]::ToBoolean($form.AllowGuestDeleteChannels)
+            allowCreateUpdateChannels = if ([string]::IsNullOrWhiteSpace($form.AllowGuestCreateUpdateChannels)) { $false } else { [System.Convert]::ToBoolean($form.AllowGuestCreateUpdateChannels) }
+            allowDeleteChannels       = if ([string]::IsNullOrWhiteSpace($form.AllowGuestDeleteChannels)) { $false } else { [System.Convert]::ToBoolean($form.AllowGuestDeleteChannels) }
         }
         messagingSettings = @{
-            allowUserEditMessages    = [System.Convert]::ToBoolean($form.AllowUserEditMessages)
-            allowUserDeleteMessages  = [System.Convert]::ToBoolean($form.AllowUserDeleteMessages)
-            allowOwnerDeleteMessages = [System.Convert]::ToBoolean($form.AllowOwnerDeleteMessages)
-            allowTeamMentions        = [System.Convert]::ToBoolean($form.AllowTeamMentions)
-            allowChannelMentions     = [System.Convert]::ToBoolean($form.AllowChannelMentions)
+            allowUserEditMessages    = if ([string]::IsNullOrWhiteSpace($form.AllowUserEditMessages)) { $false } else { [System.Convert]::ToBoolean($form.AllowUserEditMessages) }
+            allowUserDeleteMessages  = if ([string]::IsNullOrWhiteSpace($form.AllowUserDeleteMessages)) { $false } else { [System.Convert]::ToBoolean($form.AllowUserDeleteMessages) }
+            allowOwnerDeleteMessages = if ([string]::IsNullOrWhiteSpace($form.AllowOwnerDeleteMessages)) { $false } else { [System.Convert]::ToBoolean($form.AllowOwnerDeleteMessages) }
+            allowTeamMentions        = if ([string]::IsNullOrWhiteSpace($form.AllowTeamMentions)) { $false } else { [System.Convert]::ToBoolean($form.AllowTeamMentions) }
+            allowChannelMentions     = if ([string]::IsNullOrWhiteSpace($form.AllowChannelMentions)) { $false } else { [System.Convert]::ToBoolean($form.AllowChannelMentions) }
         }
         funSettings       = @{
-            allowGiphy            = [System.Convert]::ToBoolean($form.AllowGiphy)
+            allowGiphy            = if ([string]::IsNullOrWhiteSpace($form.AllowGiphy)) { $false } else { [System.Convert]::ToBoolean($form.AllowGiphy) }
             giphyContentRating    = $giphyContentRating
-            allowStickersAndMemes = [System.Convert]::ToBoolean($form.AllowStickersAndMemes)
-            allowCustomMemes      = [System.Convert]::ToBoolean($form.AllowCustomMemes)
+            allowStickersAndMemes = if ([string]::IsNullOrWhiteSpace($form.AllowStickersAndMemes)) { $false } else { [System.Convert]::ToBoolean($form.AllowStickersAndMemes) }
+            allowCustomMemes      = if ([string]::IsNullOrWhiteSpace($form.AllowCustomMemes)) { $false } else { [System.Convert]::ToBoolean($form.AllowCustomMemes) }
         }
     }
 
